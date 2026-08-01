@@ -204,47 +204,59 @@ fn build_revision(arena: &[PathNode], head_idx: usize) -> Vec<Change> {
     let mut changes = Vec::new();
     let mut curr_idx = Some(head_idx);
 
-    while let Some(idx) = curr_idx {
-        let node = &arena[idx];
-
-        if node.is_snake {
-            curr_idx = node.prev;
-            continue;
+    // Mirror: if (path.isSnake()) path = path.prev;
+    if let Some(idx) = curr_idx {
+        if arena[idx].is_snake {
+            curr_idx = arena[idx].prev;
         }
+    }
+
+    loop {
+        let idx = match curr_idx {
+            Some(i) => i,
+            None => break,
+        };
+        let node = &arena[idx];
 
         let prev_idx = match node.prev {
             Some(p) => p,
             None => break,
         };
 
-        let prev_node = &arena[prev_idx];
-
-        if node.is_bootstrap || prev_node.is_bootstrap {
+        // Mirror: while (path != null && path.prev != null && path.prev.j >= 0)
+        if arena[prev_idx].j < 0 {
             break;
         }
 
         let i = node.i;
         let j = node.j.max(0) as usize;
-        let ianchor = prev_node.i;
-        let janchor = prev_node.j.max(0) as usize;
 
-        if i > ianchor || j > janchor {
-            let delta_type = match (ianchor == i, janchor == j) {
-                (true, false) => DeltaType::Insert,
-                (false, true) => DeltaType::Delete,
-                _ => DeltaType::Change,
-            };
+        // Mirror: path = path.prev;  (move exactly once, unconditionally)
+        let path_idx = prev_idx;
+        let path_node = &arena[path_idx];
+        let ianchor = path_node.i;
+        let janchor = path_node.j.max(0) as usize;
 
-            changes.push(Change {
-                delta_type,
-                start_original: ianchor,
-                end_original: i,
-                start_revised: janchor,
-                end_revised: j,
-            });
-        }
+        let delta_type = match (ianchor == i, janchor == j) {
+            (true, false) => DeltaType::Insert,
+            (false, true) => DeltaType::Delete,
+            _ => DeltaType::Change,
+        };
 
-        curr_idx = prev_node.prev;
+        changes.push(Change {
+            delta_type,
+            start_original: ianchor,
+            end_original: i,
+            start_revised: janchor,
+            end_revised: j,
+        });
+
+        // Mirror: if (path.isSnake()) path = path.prev;
+        curr_idx = if arena[path_idx].is_snake {
+            arena[path_idx].prev
+        } else {
+            Some(path_idx)
+        };
     }
 
     changes.reverse();

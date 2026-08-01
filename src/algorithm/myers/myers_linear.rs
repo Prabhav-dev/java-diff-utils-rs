@@ -312,7 +312,13 @@ where
             let mut x = ws.v_up[idx].saturating_sub(1);
             let mut y = (x as isize - region.src_start as isize + region.tgt_start as isize - k) as usize;
 
-            while x >= region.src_start && y >= region.tgt_start && equalizer(&source[x], &target[y]) {
+            // FIX: Added upper bound checks `x < region.src_end` and `y < region.tgt_end`
+            while x >= region.src_start
+                && y >= region.tgt_start
+                && x < region.src_end
+                && y < region.tgt_end
+                && equalizer(&source[x], &target[y])
+            {
                 ws.v_up[idx] = x;
                 if x == 0 || y == 0 {
                     break;
