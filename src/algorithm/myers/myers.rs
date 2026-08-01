@@ -47,21 +47,17 @@ impl<T> MyersDiff<T> {
 }
 
 impl<T: PartialEq> DiffAlgorithm<T> for MyersDiff<T> {
-    fn compute_diff(&self, source: &[T], target: &[T]) -> Vec<Change> {
+    fn diff_with_listener(
+        &self,
+        source: &[T],
+        target: &[T],
+        _listener: &mut dyn DiffAlgorithmListener,
+    ) -> Vec<Change> {
         if let Some(ref eq) = self.equalizer {
             compute_diff_with(source, target, eq)
         } else {
             compute_diff(source, target)
         }
-    }
-
-    fn compute_diff_with_listener(
-        &self,
-        source: &[T],
-        target: &[T],
-        _listener: Option<&mut dyn DiffAlgorithmListener>,
-    ) -> Vec<Change> {
-        self.compute_diff(source, target)
     }
 }
 
