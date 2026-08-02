@@ -51,12 +51,12 @@ impl<T: PartialEq> DiffAlgorithm<T> for MyersDiff<T> {
         &self,
         source: &[T],
         target: &[T],
-        _listener: &mut dyn DiffAlgorithmListener,
+        listener: &mut dyn DiffAlgorithmListener,
     ) -> Vec<Change> {
         if let Some(ref eq) = self.equalizer {
-            compute_diff_with(source, target, eq)
+            compute_diff_with_listener(source, target, eq, listener)
         } else {
-            compute_diff(source, target)
+            compute_diff_with_listener(source, target, |a, b| a == b, listener)
         }
     }
 }
@@ -70,7 +70,20 @@ where
     F: Fn(&T, &T) -> bool,
 {
     let mut ws = DiffWorkspace::new();
-    compute_diff_with_workspace(source, target, equalizer, &mut ws)
+    compute_diff_with_workspace_and_listener(source, target, equalizer, &mut ws, None)
+}
+
+pub fn compute_diff_with_listener<T, F>(
+    source: &[T],
+    target: &[T],
+    equalizer: F,
+    listener: &mut dyn DiffAlgorithmListener,
+) -> Vec<Change>
+where
+    F: Fn(&T, &T) -> bool,
+{
+    let mut ws = DiffWorkspace::new();
+    compute_diff_with_workspace_and_listener(source, target, equalizer, &mut ws, Some(listener))
 }
 
 pub fn compute_diff_with_workspace<T, F>(
@@ -82,24 +95,61 @@ pub fn compute_diff_with_workspace<T, F>(
 where
     F: Fn(&T, &T) -> bool,
 {
+    compute_diff_with_workspace_and_listener(source, target, equalizer, ws, None)
+}
+
+pub fn compute_diff_with_workspace_and_listener<T, F>(
+    source: &[T],
+    target: &[T],
+    equalizer: F,
+    ws: &mut DiffWorkspace,
+    mut listener: Option<&mut dyn DiffAlgorithmListener>,
+) -> Vec<Change>
+where
+    F: Fn(&T, &T) -> bool,
+{
+    if let Some(ref mut l) = listener {
+        l.diff_start();
+    }
+
     if source.is_empty() && target.is_empty() {
+        if let Some(ref mut l) = listener {
+            l.diff_end();
+        }
         return Vec::new();
     }
 
     ws.clear();
 
-    if let Some(head_idx) = build_path(source, target, &equalizer, ws) {
-        build_revision(&ws.arena, head_idx)
+    // Re-borrow listener using as_deref_mut()
+    let head_idx = build_path(
+        source,
+        target,
+        &equalizer,
+        ws,
+        listener.as_deref_mut(),
+    );
+
+    let result = if let Some(idx) = head_idx {
+        build_revision(&ws.arena, idx)
     } else {
         Vec::new()
+    };
+
+    if let Some(ref mut l) = listener {
+        l.diff_end();
     }
+
+    result
 }
 
-fn build_path<T, F>(
+pub fn build_path<'a, T, F>(
     orig: &[T],
     rev: &[T],
     equalizer: &F,
     ws: &mut DiffWorkspace,
+    // Explicit anonymous lifetime decouple on the trait object reference!
+    mut listener: Option<&'a mut (dyn DiffAlgorithmListener + '_)>,
 ) -> Option<usize>
 where
     F: Fn(&T, &T) -> bool,
@@ -110,7 +160,9 @@ where
     let size = 1 + 2 * max;
     let middle = max;
 
+    ws.arena.clear();
     ws.arena.reserve(max * 2);
+
     if ws.diagonal.len() < size {
         ws.diagonal.resize(size, None);
     } else {
@@ -128,6 +180,11 @@ where
 
     for d in 0..max {
         let d_isize = d as isize;
+
+        // Emit progress step once per edit distance iteration to match Java parity
+        if let Some(ref mut l) = listener {
+            l.path_node(d, max, d);
+        }
 
         for k in (-d_isize..=d_isize).step_by(2) {
             let kmiddle = (middle as isize + k) as usize;
@@ -201,10 +258,9 @@ where
 }
 
 fn build_revision(arena: &[PathNode], head_idx: usize) -> Vec<Change> {
-    let mut changes = Vec::new();
+    let mut raw_changes = Vec::new();
     let mut curr_idx = Some(head_idx);
 
-    // Mirror: if (path.isSnake()) path = path.prev;
     if let Some(idx) = curr_idx {
         if arena[idx].is_snake {
             curr_idx = arena[idx].prev;
@@ -223,7 +279,6 @@ fn build_revision(arena: &[PathNode], head_idx: usize) -> Vec<Change> {
             None => break,
         };
 
-        // Mirror: while (path != null && path.prev != null && path.prev.j >= 0)
         if arena[prev_idx].j < 0 {
             break;
         }
@@ -231,7 +286,6 @@ fn build_revision(arena: &[PathNode], head_idx: usize) -> Vec<Change> {
         let i = node.i;
         let j = node.j.max(0) as usize;
 
-        // Mirror: path = path.prev;  (move exactly once, unconditionally)
         let path_idx = prev_idx;
         let path_node = &arena[path_idx];
         let ianchor = path_node.i;
@@ -243,7 +297,7 @@ fn build_revision(arena: &[PathNode], head_idx: usize) -> Vec<Change> {
             _ => DeltaType::Change,
         };
 
-        changes.push(Change {
+        raw_changes.push(Change {
             delta_type,
             start_original: ianchor,
             end_original: i,
@@ -251,7 +305,6 @@ fn build_revision(arena: &[PathNode], head_idx: usize) -> Vec<Change> {
             end_revised: j,
         });
 
-        // Mirror: if (path.isSnake()) path = path.prev;
         curr_idx = if arena[path_idx].is_snake {
             arena[path_idx].prev
         } else {
@@ -259,6 +312,22 @@ fn build_revision(arena: &[PathNode], head_idx: usize) -> Vec<Change> {
         };
     }
 
-    changes.reverse();
-    changes
+    raw_changes.reverse();
+
+    let mut merged: Vec<Change> = Vec::with_capacity(raw_changes.len());
+    for change in raw_changes {
+        if let Some(last) = merged.last_mut() {
+            if last.delta_type == change.delta_type
+                && last.end_original == change.start_original
+                && last.end_revised == change.start_revised
+            {
+                last.end_original = change.end_original;
+                last.end_revised = change.end_revised;
+                continue;
+            }
+        }
+        merged.push(change);
+    }
+
+    merged
 }

@@ -187,13 +187,13 @@ fn partition_and_build<T, F, L>(
             if i < region.src_end && j < region.tgt_end && equalizer(&source[i], &target[j]) {
                 i += 1;
                 j += 1;
-            } else if (region.src_end - region.src_start) > (region.tgt_end - region.tgt_start) {
+            } else if (region.src_end - i) > (region.tgt_end - j) {
                 push_change(script, DeltaType::Delete, i, i + 1, j, j);
                 i += 1;
             } else {
                 push_change(script, DeltaType::Insert, i, i, j, j + 1);
                 j += 1;
-            }
+}
         }
     } else if let Some(snake) = middle_snake {
         let mid_tgt_1 = (snake.start as isize - snake.diag) as usize;
