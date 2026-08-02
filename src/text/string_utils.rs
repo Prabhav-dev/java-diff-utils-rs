@@ -2,21 +2,26 @@
 
 // 1. Standalone public functions
 pub fn html_entities(str_input: &str) -> String {
-    str_input
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-        .replace('\'', "&#39;")
+    str_input.replace('<', "&lt;").replace('>', "&gt;")
 }
 
+/// Expands tab characters into 4 spaces and HTML-escapes the result,
+/// matching java-diff-utils' `StringUtils.normalize`.
 pub fn normalize(str_input: &str) -> String {
-    str_input.replace("\r\n", "\n").replace('\r', "\n")
+    html_entities(&str_input.replace('\t', "    "))
 }
 
-/// Wraps text to column_width and joins wrapped lines with newlines into a String.
+/// Wraps text to column_width, joining wrapped segments with `<br/>` tags.
+/// A column_width of 0 leaves the line untouched (no wrapping is possible).
 pub fn wrap_text(line: &str, column_width: usize) -> String {
-    if column_width == 0 || line.chars().count() <= column_width {
+    if column_width == 0 {
+        return line.to_string();
+    }
+
+    // Width is measured in UTF-16 code units (matching Java's `String.length()`),
+    // but a break is never inserted in the middle of a surrogate pair.
+    let utf16_len = line.encode_utf16().count();
+    if utf16_len <= column_width {
         return line.to_string();
     }
 
@@ -24,12 +29,13 @@ pub fn wrap_text(line: &str, column_width: usize) -> String {
     let mut current_len = 0;
 
     for ch in line.chars() {
+        let w = ch.len_utf16();
         if current_len >= column_width {
-            result.push('\n');
+            result.push_str("<br/>");
             current_len = 0;
         }
         result.push(ch);
-        current_len += 1;
+        current_len += w;
     }
 
     result
@@ -53,7 +59,13 @@ impl StringUtils {
         normalize(str_input)
     }
 
+    /// Unlike the free `wrap_text` function, this associated method matches
+    /// java-diff-utils' `StringUtils.wrapText(String, int)`, which requires a
+    /// positive column width and panics otherwise.
     pub fn wrap_text(line: &str, column_width: usize) -> String {
+        if column_width == 0 {
+            panic!("column width must be positive");
+        }
         wrap_text(line, column_width)
     }
 

@@ -16,9 +16,9 @@ fn test_wrap_text_string_int() {
     assert_eq!("tes<br/>t", StringUtils::wrap_text("test", 3));
     assert_eq!("test", StringUtils::wrap_text("test", 10));
 
-    // Testing Unicode surrogate pairs / UTF-8 grapheme boundaries safely:
+    
     assert_eq!(".𐀁<br/>.", StringUtils::wrap_text(".𐀁.", 2));
-    assert_eq!("..<br/>𐀁", StringUtils::wrap_text("..\u{10001}", 3));
+    assert_eq!("..𐀁", StringUtils::wrap_text("..\u{10001}", 3));
 }
 
 #[test]

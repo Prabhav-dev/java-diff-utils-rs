@@ -336,13 +336,13 @@ impl UnifiedDiffUtils {
                 let nex_map = Self::get_row_map(n_simb);
                 let mut start = 0usize;
                 if map.get("orgRow").cloned().unwrap_or(0) != 0 {
-                    start = map["orgRow"] + map["orgDel"] - 1;
+                    start = (map["orgRow"] + map["orgDel"]).wrapping_sub(1);
                 }
                 let end = nex_map["revRow"].saturating_sub(2);
                 result.extend(Self::get_orig_list(original, start, end));
             }
 
-            let mut start = map["orgRow"] + map["orgDel"] - 1;
+            let mut start = (map["orgRow"] + map["orgDel"]).wrapping_sub(1);
             if start == usize::MAX {
                 start = 0;
             }
@@ -352,7 +352,9 @@ impl UnifiedDiffUtils {
                 && map["orgDel"] != original.len()
             {
                 result.extend(Self::get_orig_list(original, start, original.len() - 1));
-            } else if nex_simb.is_none() && (map["orgRow"] + map["orgDel"] - 1) < original.len() {
+            } else if nex_simb.is_none()
+                && (map["orgRow"] + map["orgDel"]).wrapping_sub(1) < original.len()
+            {
                 result.extend(Self::get_orig_list(original, start, original.len() - 1));
             }
         }

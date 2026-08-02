@@ -48,7 +48,6 @@ impl<T> Chunk<T> {
     {
         let len = self.len();
 
-        // Zero-length chunks (Insertions) can be placed at any index within target bounds
         if len == 0 {
             if position > target.len() {
                 return Ok(VerifyChunk::PositionOutOfTarget);
@@ -56,21 +55,29 @@ impl<T> Chunk<T> {
             return Ok(VerifyChunk::Ok);
         }
 
-        // Fuzz cannot exceed half the chunk size
-        if len < 2 * fuzz {
-            return Ok(VerifyChunk::PositionOutOfTarget);
+        if fuzz >= len {
+            return Ok(VerifyChunk::Ok);
         }
 
         let start_index = fuzz;
-        let check_len = len - 2 * fuzz;
+        let end_index = len.saturating_sub(fuzz);
 
-        if position + check_len > target.len() {
+        if end_index <= start_index {
+            return Ok(VerifyChunk::Ok);
+        }
+
+        let check_len = end_index - start_index;
+
+        // FIX: Use saturating_add to prevent overflow panic on large offsets
+        if position.saturating_add(start_index).saturating_add(check_len) > target.len() {
             return Ok(VerifyChunk::PositionOutOfTarget);
         }
 
         for i in 0..check_len {
             let chunk_idx = start_index + i;
-            let target_idx = position + i;
+            
+            // FIX: Safely calculate target_idx
+            let target_idx = position.saturating_add(start_index).saturating_add(i);
 
             if target_idx >= target.len() {
                 return Ok(VerifyChunk::PositionOutOfTarget);
@@ -83,7 +90,6 @@ impl<T> Chunk<T> {
 
         Ok(VerifyChunk::Ok)
     }
-
     /// Returns the zero-based start position of this chunk.
     #[inline]
     pub fn position(&self) -> usize {

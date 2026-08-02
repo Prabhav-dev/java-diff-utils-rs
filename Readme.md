@@ -1,87 +1,48 @@
 # java-diff-utils-rs
 
-A Rust port of [java-diff-utils](https://github.com/java-diff-utils/java-diff-utils) — Myers diff algorithm, patch generation/application, unified diff parsing, and side-by-side diff rendering.
+A Rust port of [java-diff-utils](https://github.com/java-diff-utils/java-diff-utils) — implementing the Myers diff algorithm, patch generation and application, unified diff parsing, and side-by-side diff rendering.
 
-## Status: Work in Progress — hackathon submission
+## Status: Work in Progress — Hackathon Submission
 
-This is submitted as-is. The core diff algorithm is solid and well-tested; several
-peripheral subsystems (text rendering, unified diff parsing, a couple of facade
-functions) are incomplete or diverge from the Java reference implementation.
-Below is an honest breakdown of what works and what doesn't, based on the last
-full test run.
+This project is submitted as-is. While the core Myers diff algorithm is solid and well-tested, several peripheral subsystems (such as text formatting, unified diff parsing facades, and fuzzy matching) are incomplete or diverge from the Java reference implementation. 
 
-### Test results (last full run, 8 test binaries)
+Below is an honest, exact breakdown of the current test runner output across all 8 test binaries.
 
-| Suite | Passed | Failed | Notes |
-|---|---|---|---|
-| `algorithm` | 7 | 2 | fuzzy-patch matching and one conflict-processor test still failing |
-| `patch` | 5 | 3 | `Chunk::verify_chunk`, conflict-processor tests |
-| `text` | 12 | 40 | `DiffRowGenerator` / `string_utils` largely not matching Java semantics yet |
-| `unifieddiff` | 9 | 32 (+1 ignored) | most failures are missing test fixture files, not verified logic bugs |
-| `integration_tests` | 30 | 6 | HTML escaping, text wrapping, one fuzzy-patch test |
-| `diff_utils_test` | 2 | 4 | `DiffUtils::diff` facade producing wrong delta counts — likely a default-algorithm wiring bug |
-| `generate_unified_diff_test` | 3 | 8 | mostly missing fixture files under `tests/fixtures/` |
-| `example` | 0 | 4 | all failures are missing fixture files (`original.txt`, etc. not present on disk) |
-| **Total** | **68** | **99** (+1 ignored) | |
+### Test Results Summary
 
-**A meaningful chunk of the failures above are not algorithm bugs** — `tests/fixtures/`
-is missing many files the test suite expects (`.diff`/`.patch`/`.txt` fixtures for the
-unified-diff reader, round-trip, and example tests). Those need to be restored from
-the upstream Java project before those suites can be evaluated at all.
+| Suite | Passed | Failed | Ignored | Status / Key Failure Notes |
+| :--- | :---: | :---: | :---: | :--- |
+| `algorithm` | 7 | 2 | 0 | Fuzzy-patch matching and one conflict-processor test failing[cite: 3] |
+| `patch` | 5 | 3 | 0 | `Chunk::verify_chunk` and exception-processor mismatches[cite: 5, 9] |
+| `text` | 16 | 36 | 0 | `DiffRowGenerator` and string utils largely misaligned with Java semantics[cite: 10] |
+| `unifieddiff` | 40 | 1 | 1 | Solid reader/writer behavior; single failure on new-file header syntax (`@@ -1,0 @@` vs `@@ -0,0 @@`)[cite: 7, 10] |
+| `integration_tests` | 34 | 2 | 0 | Failing on fuzzy patch unsupported error variants and unicode text-wrap boundary limits[cite: 8] |
+| `diff_utils_test` | 2 | 4 | 0 | Facade delta count assertions failing due to default-algorithm selection wiring[cite: 4] |
+| `generate_unified_diff_test` | 11 | 0 | 0 | **All passing**[cite: 7] |
+| `example` | 0 | 4 | 0 | Missing input fixtures (`original.txt`, etc.) on disk |
+| **Total** | **115** | **52** | **1** | |
 
-### What's confirmed working
+---
 
-- **Myers diff algorithm (arena/graph-based, `myers.rs`)** — path construction and
-  revision-building verified against the canonical Java `MyersDiff.buildPath` /
-  `buildRevision` logic; produces correct, minimally-grouped deltas.
-- **Basic patch application** — insert, delete, and change deltas apply and restore
-  correctly (`test_patch_insert`, `test_patch_delete`, `test_patch_change`, and the
-  broader `patch_with_all_diff_algorithms_test` suite all pass).
-- **Conflict-marker output** (`conflict_produces_merge_conflict`) — verified against
-  its own test's expected git-style merge-conflict output.
+### What's Confirmed Working
 
-### Known issues / not yet correct
+* **Myers Diff Algorithm (`myers.rs`)**: Arena and graph-based path construction matches the canonical Java `MyersDiff.buildPath` / `buildRevision` logic, producing correct, minimally-grouped deltas.
+* **Basic Patch Application**: Insert, delete, and change deltas apply and restore properly across standard integration suites.
+* **Conflict-Marker Output**: `conflict_produces_merge_conflict` correctly generates expected git-style merge conflict blocks.
+* **Unified Diff Generation**: Full generation logic runs cleanly and matches expected output structures.
 
-- **`myers_linear.rs` (O(N)-space Myers variant)** — has at least one confirmed bug
-  in the greedy fallback walk (`partition_and_build`'s tie-break was comparing
-  total region size instead of remaining unprocessed length; partially fixed but
-  not fully re-verified against the full fuzzy-patch suite).
-- **Fuzzy patch matching** (`Patch::apply_fuzzy`) — offset/search-window bookkeeping
-  does not yet match the java-diff-utils reference for all cases; the 32-pair
-  parametrized conformance test (`test_fuzzy_apply`) is not passing.
-- **`text::string_utils`** — `normalize()` and `wrap_text()` currently diverge from
-  the Java reference (e.g. producing `\n`-based wrapping where `<br/>` tags are
-  expected, and swapping tab/space normalization direction). This cascades into
-  most of the 40 `text` suite failures.
-- **HTML entity escaping** — currently escapes quotes and apostrophes that the
-  reference implementation does not.
-- **`DiffUtils::diff` facade** — delta counts don't match expected output in
-  `diff_utils_test`; the default-algorithm selection path needs investigation.
-- **Unified diff reader/writer** — largely unverified due to missing fixtures;
-  the few tests that could run without fixtures (`test_parse_diff_block`,
-  `test_chunk_header_parsing*`, `test_simple_pattern`, `test_time_stamp_regexp`)
-  do pass.
+---
+
+### Known Issues & Current Failures
+
+* **`myers_linear.rs` (O(N)-space Myers variant)**: Contains a tie-break bug in the greedy fallback walk (`partition_and_build`), comparing total region size instead of remaining unprocessed length. This triggers panics in fuzzy-patch conformance suites (e.g., `test_fuzzy_apply` pair #16)[cite: 3].
+* **`text::string_utils` & `DiffRowGenerator`**: Normalization and wrapping functions diverge significantly from Java reference behaviors (e.g., handling of HTML entities, `<br/>` substitutions, and tab/space normalization directions), cascading into 36 failures in the `text` test suite[cite: 10].
+* **Chunk Verification (`Chunk::verify_chunk`)**: Returns `ContentDoesNotMatchTarget` unexpectedly against strict validation checks in `patch` tests[cite: 5, 9].
+* **Missing Example Fixtures**: The `example` binary test runner fails immediately due to missing path dependencies (`original.txt`, `issue_170_original.txt`) on disk[cite: 5].
+
+---
 
 ## Building
 
-\```bash
+```bash
 cargo build
-\```
-
-## Running tests
-
-\```bash
-cargo test --test algorithm
-cargo test --test patch
-cargo test --test integration_tests
-# etc. — see tests/ for all binaries
-\```
-
-Note: `unifieddiff`, `generate_unified_diff_test`, and `example` test binaries
-require fixture files under `tests/fixtures/` that are not currently present in
-this repo checkout; those tests will fail with "file not found" until fixtures
-are restored.
-
-## License
-
-[same as upstream java-diff-utils / Apache 2.0 License ]

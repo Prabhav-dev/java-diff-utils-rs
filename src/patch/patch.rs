@@ -376,7 +376,12 @@ fn find_position_with_fuzz_and_more_delta<T: PartialEq>(
     if !ctx.after_out_range {
         let src_len = delta.source().len();
         let effective_len = if src_len > 2 * fuzz { src_len - 2 * fuzz } else { 0 };
-        let begin_at = ctx.default_position + more_delta + effective_len;
+        
+        // FIX: Prevent usize wrap-around from bypassing the loop termination guard
+        let begin_at = ctx.default_position
+            .saturating_add(more_delta)
+            .saturating_add(effective_len);
+            
         if begin_at > ctx.result.len() {
             ctx.after_out_range = true;
         }
@@ -391,7 +396,8 @@ fn find_position_with_fuzz_and_more_delta<T: PartialEq>(
     }
 
     if !ctx.after_out_range && more_delta > 0 {
-        let test_pos = ctx.default_position + more_delta;
+        // FIX: Prevent overflow on the forward probe position
+        let test_pos = ctx.default_position.saturating_add(more_delta);
         let after = delta.source().verify_chunk_at(ctx.result, fuzz, test_pos)?;
         if after == VerifyChunk::Ok {
             return Ok(Some(test_pos));

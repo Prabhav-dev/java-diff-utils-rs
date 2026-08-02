@@ -55,7 +55,11 @@ impl UnifiedDiffWriter {
                     writer(&format!("index {}", index));
                 }
 
-                let from_file_str = file.from_file().unwrap_or("/dev/null");
+                let from_file_str = match file.from_file() {
+                    None => "/dev/null",
+                    Some(f) if f.is_empty() => "/dev/null",
+                    Some(f) => f,
+                };
                 writer(&format!("--- {}", from_file_str));
 
                 if let Some(to_file) = file.to_file() {

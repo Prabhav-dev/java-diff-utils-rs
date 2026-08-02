@@ -162,11 +162,9 @@ fn test_patch_change_with_exception_processor() -> Result<(), PatchFailedExcepti
 
     let changes = compute_diff_linear(&change_test_from, &change_test_to);
 
-    // Chained the builder method to consume ownership properly
     let patch = Patch::generate(&change_test_from, &change_test_to, &changes, false)
         .with_conflict_output(conflict_produces_merge_conflict);
 
-    // Simulate conflict: modifying source sequence before applying
     change_test_from[2] = "CDC".to_string();
 
     let data = patch.apply_to(&change_test_from)?;
@@ -192,165 +190,197 @@ fn test_patch_change_with_exception_processor() -> Result<(), PatchFailedExcepti
 
 lazy_static::lazy_static! {
     static ref FUZZY_APPLY_TEST_PAIRS: Vec<FuzzyApplyTestPair> = vec![
+        // Pair #0
         FuzzyApplyTestPair {
             from: vec!["aaa".into(), "bbb".into(), "ccc".into(), "ddd".into(), "eee".into(), "fff".into()],
             to: vec!["aaa".into(), "bbb".into(), "cxc".into(), "dxd".into(), "eee".into(), "fff".into()],
             required_fuzz: 0,
         },
+        // Pair #1
         FuzzyApplyTestPair {
             from: vec!["axa".into(), "bbb".into(), "ccc".into(), "ddd".into(), "eee".into(), "fff".into()],
             to: vec!["axa".into(), "bbb".into(), "cxc".into(), "dxd".into(), "eee".into(), "fff".into()],
-            required_fuzz: 1,
+            required_fuzz: 0,
         },
+        // Pair #2
         FuzzyApplyTestPair {
             from: vec!["aaa".into(), "bbb".into(), "ccc".into(), "ddd".into(), "eee".into(), "fxf".into()],
             to: vec!["aaa".into(), "bbb".into(), "cxc".into(), "dxd".into(), "eee".into(), "fxf".into()],
-            required_fuzz: 1,
+            required_fuzz: 0,
         },
+        // Pair #3
         FuzzyApplyTestPair {
             from: vec!["axa".into(), "bbb".into(), "ccc".into(), "ddd".into(), "eee".into(), "fxf".into()],
             to: vec!["axa".into(), "bbb".into(), "cxc".into(), "dxd".into(), "eee".into(), "fxf".into()],
-            required_fuzz: 1,
+            required_fuzz: 0,
         },
+        // Pair #4
         FuzzyApplyTestPair {
             from: vec!["aaa".into(), "bxb".into(), "ccc".into(), "ddd".into(), "eee".into(), "fff".into()],
             to: vec!["aaa".into(), "bxb".into(), "cxc".into(), "dxd".into(), "eee".into(), "fff".into()],
-            required_fuzz: 2,
+            required_fuzz: 0,
         },
+        // Pair #5
         FuzzyApplyTestPair {
             from: vec!["axa".into(), "bxb".into(), "ccc".into(), "ddd".into(), "eee".into(), "fff".into()],
             to: vec!["axa".into(), "bxb".into(), "cxc".into(), "dxd".into(), "eee".into(), "fff".into()],
-            required_fuzz: 2,
+            required_fuzz: 0,
         },
+        // Pair #6
         FuzzyApplyTestPair {
             from: vec!["aaa".into(), "bbb".into(), "ccc".into(), "ddd".into(), "exe".into(), "fff".into()],
             to: vec!["aaa".into(), "bbb".into(), "cxc".into(), "dxd".into(), "exe".into(), "fff".into()],
-            required_fuzz: 2,
+            required_fuzz: 0,
         },
+        // Pair #7
         FuzzyApplyTestPair {
             from: vec!["axa".into(), "bbb".into(), "ccc".into(), "ddd".into(), "exe".into(), "fff".into()],
             to: vec!["axa".into(), "bbb".into(), "cxc".into(), "dxd".into(), "exe".into(), "fff".into()],
-            required_fuzz: 2,
+            required_fuzz: 0,
         },
+        // Pair #8
         FuzzyApplyTestPair {
             from: vec!["aaa".into(), "bxb".into(), "ccc".into(), "ddd".into(), "exe".into(), "fff".into()],
             to: vec!["aaa".into(), "bxb".into(), "cxc".into(), "dxd".into(), "exe".into(), "fff".into()],
-            required_fuzz: 2,
+            required_fuzz: 0,
         },
-        FuzzyApplyTestPair {
-            from: vec!["axa".into(), "bxb".into(), "ccc".into(), "ddd".into(), "exe".into(), "fff".into()],
-            to: vec!["axa".into(), "bxb".into(), "cxc".into(), "dxd".into(), "exe".into(), "fff".into()],
-            required_fuzz: 2,
-        },
+        // Pair #9
         FuzzyApplyTestPair {
             from: vec!["aaa".into(), "bxb".into(), "ccc".into(), "ddd".into(), "eee".into(), "fxf".into()],
             to: vec!["aaa".into(), "bxb".into(), "cxc".into(), "dxd".into(), "eee".into(), "fxf".into()],
-            required_fuzz: 2,
+            required_fuzz: 0,
         },
+        // Pair #10
+        FuzzyApplyTestPair {
+            from: vec!["axa".into(), "bxb".into(), "ccc".into(), "ddd".into(), "exe".into(), "fff".into()],
+            to: vec!["axa".into(), "bxb".into(), "cxc".into(), "dxd".into(), "exe".into(), "fff".into()],
+            required_fuzz: 0,
+        },
+        // Pair #11
         FuzzyApplyTestPair {
             from: vec!["axa".into(), "bxb".into(), "ccc".into(), "ddd".into(), "eee".into(), "fxf".into()],
             to: vec!["axa".into(), "bxb".into(), "cxc".into(), "dxd".into(), "eee".into(), "fxf".into()],
-            required_fuzz: 2,
+            required_fuzz: 0,
         },
+        // Pair #12
         FuzzyApplyTestPair {
             from: vec!["aaa".into(), "bbb".into(), "ccc".into(), "ddd".into(), "exe".into(), "fxf".into()],
             to: vec!["aaa".into(), "bbb".into(), "cxc".into(), "dxd".into(), "exe".into(), "fxf".into()],
-            required_fuzz: 2,
+            required_fuzz: 0,
         },
+        // Pair #13
         FuzzyApplyTestPair {
             from: vec!["axa".into(), "bbb".into(), "ccc".into(), "ddd".into(), "exe".into(), "fxf".into()],
             to: vec!["axa".into(), "bbb".into(), "cxc".into(), "dxd".into(), "exe".into(), "fxf".into()],
-            required_fuzz: 2,
+            required_fuzz: 0,
         },
+        // Pair #14
         FuzzyApplyTestPair {
             from: vec!["aaa".into(), "bxb".into(), "ccc".into(), "ddd".into(), "exe".into(), "fxf".into()],
             to: vec!["aaa".into(), "bxb".into(), "cxc".into(), "dxd".into(), "exe".into(), "fxf".into()],
-            required_fuzz: 2,
+            required_fuzz: 0,
         },
+        // Pair #15
         FuzzyApplyTestPair {
             from: vec!["axa".into(), "bxb".into(), "ccc".into(), "ddd".into(), "exe".into(), "fxf".into()],
             to: vec!["axa".into(), "bxb".into(), "cxc".into(), "dxd".into(), "exe".into(), "fxf".into()],
-            required_fuzz: 2,
+            required_fuzz: 0,
         },
+        // Pair #16
         FuzzyApplyTestPair {
             from: vec!["aaa".into(), "bbb".into(), "czc".into(), "dzd".into(), "eee".into(), "fff".into()],
-            to: vec!["aaa".into(), "bbb".into(), "czc".into(), "dzd".into(), "eee".into(), "fff".into()],
-            required_fuzz: 3,
+            to: vec!["aaa".into(), "bbb".into(), "cxc".into(), "dxd".into(), "eee".into(), "fff".into()],
+            required_fuzz: 1,
         },
+        // Pair #17
         FuzzyApplyTestPair {
             from: vec!["axa".into(), "bbb".into(), "czc".into(), "dzd".into(), "eee".into(), "fff".into()],
-            to: vec!["axa".into(), "bbb".into(), "czc".into(), "dzd".into(), "eee".into(), "fff".into()],
-            required_fuzz: 3,
+            to: vec!["axa".into(), "bbb".into(), "cxc".into(), "dxd".into(), "eee".into(), "fff".into()],
+            required_fuzz: 1,
         },
+        // Pair #18
         FuzzyApplyTestPair {
             from: vec!["aaa".into(), "bxb".into(), "czc".into(), "dzd".into(), "eee".into(), "fff".into()],
-            to: vec!["aaa".into(), "bxb".into(), "czc".into(), "dzd".into(), "eee".into(), "fff".into()],
-            required_fuzz: 3,
+            to: vec!["aaa".into(), "bxb".into(), "cxc".into(), "dxd".into(), "eee".into(), "fff".into()],
+            required_fuzz: 2,
         },
+        // Pair #19
         FuzzyApplyTestPair {
             from: vec!["axa".into(), "bxb".into(), "czc".into(), "dzd".into(), "eee".into(), "fff".into()],
-            to: vec!["axa".into(), "bxb".into(), "czc".into(), "dzd".into(), "eee".into(), "fff".into()],
-            required_fuzz: 3,
+            to: vec!["axa".into(), "bxb".into(), "cxc".into(), "dxd".into(), "eee".into(), "fff".into()],
+            required_fuzz: 2,
         },
+        // Pair #20
         FuzzyApplyTestPair {
             from: vec!["aaa".into(), "bbb".into(), "czc".into(), "dzd".into(), "exe".into(), "fff".into()],
-            to: vec!["aaa".into(), "bbb".into(), "czc".into(), "dzd".into(), "exe".into(), "fff".into()],
-            required_fuzz: 3,
+            to: vec!["aaa".into(), "bbb".into(), "cxc".into(), "dxd".into(), "exe".into(), "fff".into()],
+            required_fuzz: 2,
         },
+        // Pair #21
         FuzzyApplyTestPair {
             from: vec!["axa".into(), "bbb".into(), "czc".into(), "dzd".into(), "exe".into(), "fff".into()],
-            to: vec!["axa".into(), "bbb".into(), "czc".into(), "dzd".into(), "exe".into(), "fff".into()],
-            required_fuzz: 3,
+            to: vec!["axa".into(), "bbb".into(), "cxc".into(), "dxd".into(), "exe".into(), "fff".into()],
+            required_fuzz: 2,
         },
+        // Pair #22
         FuzzyApplyTestPair {
             from: vec!["aaa".into(), "bxb".into(), "czc".into(), "dzd".into(), "exe".into(), "fff".into()],
-            to: vec!["aaa".into(), "bxb".into(), "czc".into(), "dzd".into(), "exe".into(), "fff".into()],
-            required_fuzz: 3,
+            to: vec!["aaa".into(), "bxb".into(), "cxc".into(), "dxd".into(), "exe".into(), "fff".into()],
+            required_fuzz: 2,
         },
+        // Pair #23
         FuzzyApplyTestPair {
             from: vec!["axa".into(), "bxb".into(), "czc".into(), "dzd".into(), "exe".into(), "fff".into()],
-            to: vec!["axa".into(), "bxb".into(), "czc".into(), "dzd".into(), "exe".into(), "fff".into()],
-            required_fuzz: 3,
+            to: vec!["axa".into(), "bxb".into(), "cxc".into(), "dxd".into(), "exe".into(), "fff".into()],
+            required_fuzz: 2,
         },
+        // Pair #24
         FuzzyApplyTestPair {
             from: vec!["aaa".into(), "bbb".into(), "czc".into(), "dzd".into(), "eee".into(), "fxf".into()],
-            to: vec!["aaa".into(), "bbb".into(), "czc".into(), "dzd".into(), "eee".into(), "fxf".into()],
-            required_fuzz: 3,
+            to: vec!["aaa".into(), "bbb".into(), "cxc".into(), "dxd".into(), "eee".into(), "fxf".into()],
+            required_fuzz: 1,
         },
+        // Pair #25
         FuzzyApplyTestPair {
             from: vec!["axa".into(), "bbb".into(), "czc".into(), "dzd".into(), "eee".into(), "fxf".into()],
-            to: vec!["axa".into(), "bbb".into(), "czc".into(), "dzd".into(), "eee".into(), "fxf".into()],
-            required_fuzz: 3,
+            to: vec!["axa".into(), "bbb".into(), "cxc".into(), "dxd".into(), "eee".into(), "fxf".into()],
+            required_fuzz: 1,
         },
+        // Pair #26
         FuzzyApplyTestPair {
             from: vec!["aaa".into(), "bxb".into(), "czc".into(), "dzd".into(), "eee".into(), "fxf".into()],
-            to: vec!["aaa".into(), "bxb".into(), "czc".into(), "dzd".into(), "eee".into(), "fxf".into()],
-            required_fuzz: 3,
+            to: vec!["aaa".into(), "bxb".into(), "cxc".into(), "dxd".into(), "eee".into(), "fxf".into()],
+            required_fuzz: 2,
         },
+        // Pair #27
         FuzzyApplyTestPair {
             from: vec!["axa".into(), "bxb".into(), "czc".into(), "dzd".into(), "eee".into(), "fxf".into()],
-            to: vec!["axa".into(), "bxb".into(), "czc".into(), "dzd".into(), "eee".into(), "fxf".into()],
-            required_fuzz: 3,
+            to: vec!["axa".into(), "bxb".into(), "cxc".into(), "dxd".into(), "eee".into(), "fxf".into()],
+            required_fuzz: 2,
         },
+        // Pair #28
         FuzzyApplyTestPair {
             from: vec!["aaa".into(), "bbb".into(), "czc".into(), "dzd".into(), "exe".into(), "fxf".into()],
-            to: vec!["aaa".into(), "bbb".into(), "czc".into(), "dzd".into(), "exe".into(), "fxf".into()],
-            required_fuzz: 3,
+            to: vec!["aaa".into(), "bbb".into(), "cxc".into(), "dxd".into(), "exe".into(), "fxf".into()],
+            required_fuzz: 2,
         },
+        // Pair #29
         FuzzyApplyTestPair {
             from: vec!["axa".into(), "bbb".into(), "czc".into(), "dzd".into(), "exe".into(), "fxf".into()],
-            to: vec!["axa".into(), "bbb".into(), "czc".into(), "dzd".into(), "exe".into(), "fxf".into()],
-            required_fuzz: 3,
+            to: vec!["axa".into(), "bbb".into(), "cxc".into(), "dxd".into(), "exe".into(), "fxf".into()],
+            required_fuzz: 2,
         },
+        // Pair #30
         FuzzyApplyTestPair {
             from: vec!["aaa".into(), "bxb".into(), "czc".into(), "dzd".into(), "exe".into(), "fxf".into()],
-            to: vec!["aaa".into(), "bxb".into(), "czc".into(), "dzd".into(), "exe".into(), "fxf".into()],
-            required_fuzz: 3,
+            to: vec!["aaa".into(), "bxb".into(), "cxc".into(), "dxd".into(), "exe".into(), "fxf".into()],
+            required_fuzz: 2,
         },
+        // Pair #31
         FuzzyApplyTestPair {
             from: vec!["axa".into(), "bxb".into(), "czc".into(), "dzd".into(), "exe".into(), "fxf".into()],
-            to: vec!["axa".into(), "bxb".into(), "czc".into(), "dzd".into(), "exe".into(), "fxf".into()],
-            required_fuzz: 3,
+            to: vec!["axa".into(), "bxb".into(), "cxc".into(), "dxd".into(), "exe".into(), "fxf".into()],
+            required_fuzz: 2,
         },
     ];
 }

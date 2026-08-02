@@ -186,46 +186,35 @@ impl<T> Delta<T> {
     where
         T: Clone + PartialEq,
     {
+        if position > target.len() {
+            return Err(PatchError::PatchFailed(format!(
+                "Fuzzy patch position {} out of bounds for target length {}",
+                position,
+                target.len()
+            )));
+        }
+
         match self.delta_type {
             DeltaType::Delete => {
-                let source_size = self.source.len();
-                if position > target.len() {
-                    return Err(PatchError::PatchFailed(format!(
-                        "Fuzzy delete position {} out of bounds for target length {}",
-                        position,
-                        target.len()
-                    )));
+                let src_len = self.source.len();
+                let end = (position + src_len).min(target.len());
+                if position < end {
+                    target.drain(position..end);
                 }
-                let end = (position + source_size).min(target.len());
-                target.drain(position..end);
                 Ok(())
             }
             DeltaType::Insert => {
-                if position > target.len() {
-                    return Err(PatchError::PatchFailed(format!(
-                        "Fuzzy insert position {} out of bounds for target length {}",
-                        position,
-                        target.len()
-                    )));
-                }
+                let insert_pos = position.min(target.len());
                 let lines = self.target.lines();
-                target.splice(position..position, lines.iter().cloned());
+                target.splice(insert_pos..insert_pos, lines.iter().cloned());
                 Ok(())
             }
             DeltaType::Change => {
-                let source_size = self.source.len();
-                if position > target.len() {
-                    return Err(PatchError::PatchFailed(format!(
-                        "Fuzzy change position {} out of bounds for target length {}",
-                        position,
-                        target.len()
-                    )));
-                }
-                let end = (position + source_size).min(target.len());
-                target.splice(
-                    position..end,
-                    self.target.lines().iter().cloned(),
-                );
+                let src_len = self.source.len();
+                let target_lines = self.target.lines();
+                let end = (position + src_len).min(target.len());
+
+                target.splice(position..end, target_lines.iter().cloned());
                 Ok(())
             }
             DeltaType::Equal => Ok(()),

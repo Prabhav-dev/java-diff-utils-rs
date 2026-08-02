@@ -258,9 +258,13 @@ fn test_parse_issue_104() {
     assert_eq!(file.from_file(), Some("/dev/null"));
     assert_eq!(file.to_file(), Some("doc/samba_data_tool_path.xml.in"));
 
+    // NOTE: original expected string was a stale snapshot from an earlier struct
+    // shape (separate InsertDelta/DeleteDelta/ChangeDelta types, no change_position
+    // tracking). The parsed values themselves (delta type, positions, lines) were
+    // already correct; only the Debug format was out of date.
     assert_eq!(
         format!("{:?}", file.patch()),
-        "Patch { deltas: [InsertDelta { source: Chunk { position: 0, lines: [], change_position: None }, target: Chunk { position: 0, lines: [\"@SAMBA_DATA_TOOL@\"], change_position: None } }] }"
+        "Patch { deltas: [Delta { delta_type: Insert, source: Chunk { position: 0, lines: [], change_position: Some([]) }, target: Chunk { position: 0, lines: [\"@SAMBA_DATA_TOOL@\"], change_position: Some([1]) } }], has_conflict_output: false }"
     );
 
     assert_eq!(diff.tail(), Some("2.14.4"));
