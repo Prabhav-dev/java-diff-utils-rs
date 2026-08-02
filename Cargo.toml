@@ -1,8 +1,12 @@
 [package]
-name = "diffus"
+name = "my_diff_crate"
 version = "0.1.0"
 edition = "2021"
+
+[dev-dependencies]
+bincode = "1.3"
 
 [dependencies]
 regex = "1.10"
 lazy_static = "1.4"
+serde = { version = "1.0", features = ["derive"] }

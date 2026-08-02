@@ -2,7 +2,7 @@
 
 use my_diff_crate::algorithm::{
     diff_algorithm_listener::DiffAlgorithmListener,
-    myers::compute_diff_linear,   // <-- was `myers::compute_diff as compute_diff_linear`
+    myers::myers_linear::compute_diff as compute_diff_linear,
 };
 use my_diff_crate::patch::Patch;
 use std::time::Instant;

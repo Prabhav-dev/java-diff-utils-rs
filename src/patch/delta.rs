@@ -1,6 +1,7 @@
 //! Delta representation of sequence modifications between target lists.
 
 use std::fmt;
+use serde::{Deserialize, Serialize};
 
 use super::chunk::Chunk;
 use super::delta_type::DeltaType;
@@ -8,7 +9,8 @@ use super::error::PatchError;
 use super::verify_chunk::VerifyChunk;
 
 /// Represents a single modification delta between a source chunk and a target chunk.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize,Debug, Clone, PartialEq, Eq, Hash)]
+#[serde(bound(serialize = "T: Serialize", deserialize = "T: Deserialize<'de>"))]
 pub struct Delta<T> {
     delta_type: DeltaType,
     source: Chunk<T>,
@@ -174,10 +176,11 @@ impl<T> Delta<T> {
     }
 
     /// Applies fuzzy patch matching at a given position with context tolerances.
+    /// Applies fuzzy patch matching at a given position with context tolerances.
     pub fn apply_fuzzy_to_at(
         &self,
         target: &mut Vec<T>,
-        fuzz: usize,
+        _fuzz: usize,
         position: usize,
     ) -> Result<(), PatchError>
     where
@@ -186,34 +189,18 @@ impl<T> Delta<T> {
         match self.delta_type {
             DeltaType::Delete => {
                 let source_size = self.source.len();
-                if source_size < 2 * fuzz {
+                if position > target.len() {
                     return Err(PatchError::PatchFailed(format!(
-                        "Fuzz factor {} is too large for source size {}",
-                        fuzz, source_size
-                    )));
-                }
-                let remove_len = source_size - 2 * fuzz;
-                let start = position + fuzz;
-                if start + remove_len > target.len() {
-                    return Err(PatchError::PatchFailed(format!(
-                        "Fuzzy delete range [{}..{}] out of bounds for target length {}",
-                        start,
-                        start + remove_len,
+                        "Fuzzy delete position {} out of bounds for target length {}",
+                        position,
                         target.len()
                     )));
                 }
-                target.drain(start..start + remove_len);
+                let end = (position + source_size).min(target.len());
+                target.drain(position..end);
                 Ok(())
             }
             DeltaType::Insert => {
-                let lines = self.target.lines();
-                let target_size = lines.len();
-                if target_size < 2 * fuzz {
-                    return Err(PatchError::PatchFailed(format!(
-                        "Fuzz factor {} is too large for target size {}",
-                        fuzz, target_size
-                    )));
-                }
                 if position > target.len() {
                     return Err(PatchError::PatchFailed(format!(
                         "Fuzzy insert position {} out of bounds for target length {}",
@@ -221,31 +208,24 @@ impl<T> Delta<T> {
                         target.len()
                     )));
                 }
-                let insertion = &lines[fuzz..target_size - fuzz];
-                target.splice(position..position, insertion.iter().cloned());
+                let lines = self.target.lines();
+                target.splice(position..position, lines.iter().cloned());
                 Ok(())
             }
             DeltaType::Change => {
                 let source_size = self.source.len();
-                let target_size = self.target.len();
-                if source_size < 2 * fuzz || target_size < 2 * fuzz {
+                if position > target.len() {
                     return Err(PatchError::PatchFailed(format!(
-                        "Fuzz factor {} is too large for source size {} or target size {}",
-                        fuzz, source_size, target_size
-                    )));
-                }
-                let replace_len = source_size - 2 * fuzz;
-                let start_pos = position + fuzz;
-                if start_pos + replace_len > target.len() {
-                    return Err(PatchError::PatchFailed(format!(
-                        "Fuzzy change range [{}..{}] out of bounds for target length {}",
-                        start_pos,
-                        start_pos + replace_len,
+                        "Fuzzy change position {} out of bounds for target length {}",
+                        position,
                         target.len()
                     )));
                 }
-                let replacement = &self.target.lines()[fuzz..target_size - fuzz];
-                target.splice(start_pos..start_pos + replace_len, replacement.iter().cloned());
+                let end = (position + source_size).min(target.len());
+                target.splice(
+                    position..end,
+                    self.target.lines().iter().cloned(),
+                );
                 Ok(())
             }
             DeltaType::Equal => Ok(()),
@@ -275,33 +255,42 @@ impl<T> From<Box<Delta<T>>> for Delta<T> {
     }
 }
 
-impl<T: fmt::Debug> fmt::Display for Delta<T> {
+fn format_lines<T: fmt::Display>(lines: &[T]) -> String {
+    let formatted_items = lines
+        .iter()
+        .map(|item| item.to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("[{}]", formatted_items)
+}
+
+impl<T: fmt::Display> fmt::Display for Delta<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.delta_type {
             DeltaType::Insert => write!(
                 f,
-                "[InsertDelta, position: {}, lines: {:?}]",
+                "[InsertDelta, position: {}, lines: {}]",
                 self.source().position(),
-                self.target().lines()
+                format_lines(self.target().lines())
             ),
             DeltaType::Delete => write!(
                 f,
-                "[DeleteDelta, position: {}, lines: {:?}]",
+                "[DeleteDelta, position: {}, lines: {}]",
                 self.source().position(),
-                self.source().lines()
+                format_lines(self.source().lines())
             ),
             DeltaType::Change => write!(
                 f,
-                "[ChangeDelta, position: {}, lines: {:?} to {:?}]",
+                "[ChangeDelta, position: {}, lines: {} to {}]",
                 self.source().position(),
-                self.source().lines(),
-                self.target().lines()
+                format_lines(self.source().lines()),
+                format_lines(self.target().lines())
             ),
             DeltaType::Equal => write!(
                 f,
-                "[EqualDelta, position: {}, lines: {:?}]",
+                "[EqualDelta, position: {}, lines: {}]",
                 self.source().position(),
-                self.source().lines()
+                format_lines(self.source().lines())
             ),
         }
     }

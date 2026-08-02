@@ -1,4 +1,5 @@
 use std::fmt;
+use serde::{Deserialize, Serialize};
 
 use crate::algorithm::change::Change;
 
@@ -34,8 +35,11 @@ impl<'a, T> PatchApplyingContext<'a, T> {
 }
 
 /// Represents a collection of deltas to transform a source sequence into a target sequence.
+#[derive(Serialize, Deserialize)]
+#[serde(bound(serialize = "T: Serialize", deserialize = "T: Deserialize<'de>"))]
 pub struct Patch<T> {
     deltas: Vec<Delta<T>>,
+    #[serde(skip, default)]
     conflict_output: Option<Box<dyn ConflictOutput<T>>>,
 }
 
@@ -192,14 +196,14 @@ impl<T> Patch<T> {
         let mut result = target.to_vec();
         let mut ctx = PatchApplyingContext::new(&mut result, max_fuzz);
 
-        let mut last_patch_delta: isize = 0;
-
         let mut sorted_deltas: Vec<&Delta<T>> = self.deltas.iter().collect();
         sorted_deltas.sort_by_key(|d| d.source().position());
 
+        let mut cumulative_offset: isize = 0;
+
         for delta in sorted_deltas {
             let src_pos = delta.source().position() as isize;
-            let default_pos = src_pos + last_patch_delta;
+            let default_pos = src_pos + cumulative_offset;
 
             if default_pos < 0 {
                 if let Some(ref handler) = self.conflict_output {
@@ -219,9 +223,23 @@ impl<T> Patch<T> {
             ctx.default_position = default_pos as usize;
 
             if let Some(patch_position) = find_position_fuzzy(&mut ctx, delta)? {
+                let old_len = ctx.result.len();
                 delta.apply_fuzzy_to_at(ctx.result, ctx.current_fuzz, patch_position)?;
-                last_patch_delta = patch_position as isize - src_pos;
-                ctx.last_patch_end = delta.source().last() as isize + last_patch_delta;
+                let new_len = ctx.result.len();
+
+                let found_slop = patch_position as isize - default_pos;
+                let length_delta = (new_len as isize) - (old_len as isize);
+                cumulative_offset += found_slop + length_delta;
+
+                // Detect a pure Deletion without needing a DeltaType enum:
+                // If the applied change shrunk the array by exactly the size of the source chunk,
+                // it is a Delete delta, meaning its footprint in the resulting array is 0.
+                let src_len = delta.source().len();
+                let is_delete = src_len > 0 && length_delta == -(src_len as isize);
+                
+                let effective_source_len = if is_delete { 0 } else { src_len };
+
+                ctx.last_patch_end = patch_position as isize + effective_source_len as isize;
             } else if let Some(ref handler) = self.conflict_output {
                 handler.process_conflict(
                     VerifyChunk::ContentDoesNotMatchTarget,
@@ -254,9 +272,7 @@ impl<T> Patch<T> {
         let mut start_revised = 0;
 
         let mut sorted_changes = changes.to_vec();
-        if include_equals {
-            sorted_changes.sort_by_key(|c| c.start_original);
-        }
+        sorted_changes.sort_by_key(|c| c.start_original);
 
         for change in &sorted_changes {
             if include_equals && start_original < change.start_original {
@@ -316,10 +332,6 @@ fn find_position_with_fuzz<T: PartialEq>(
     delta: &Delta<T>,
     fuzz: usize,
 ) -> Result<Option<usize>, PatchError> {
-    if delta.verify_chunk_to_fit_target(ctx.result)? == VerifyChunk::Ok {
-        return Ok(Some(ctx.default_position));
-    }
-
     ctx.before_out_range = false;
     ctx.after_out_range = false;
 
@@ -352,16 +364,20 @@ fn find_position_with_fuzz_and_more_delta<T: PartialEq>(
         if ctx.default_position < more_delta {
             ctx.before_out_range = true;
         } else {
-            let begin_at = (ctx.default_position - more_delta) + fuzz;
-            if begin_at as isize <= ctx.last_patch_end {
+            let begin_at = ctx.default_position - more_delta;
+            let begin_at_isize = begin_at as isize;
+
+            if begin_at_isize < ctx.last_patch_end {
                 ctx.before_out_range = true;
             }
         }
     }
 
     if !ctx.after_out_range {
-        let begin_at = ctx.default_position + more_delta + delta.source().len() - fuzz;
-        if ctx.result.len() < begin_at {
+        let src_len = delta.source().len();
+        let effective_len = if src_len > 2 * fuzz { src_len - 2 * fuzz } else { 0 };
+        let begin_at = ctx.default_position + more_delta + effective_len;
+        if begin_at > ctx.result.len() {
             ctx.after_out_range = true;
         }
     }
@@ -374,7 +390,7 @@ fn find_position_with_fuzz_and_more_delta<T: PartialEq>(
         }
     }
 
-    if !ctx.after_out_range {
+    if !ctx.after_out_range && more_delta > 0 {
         let test_pos = ctx.default_position + more_delta;
         let after = delta.source().verify_chunk_at(ctx.result, fuzz, test_pos)?;
         if after == VerifyChunk::Ok {
@@ -385,8 +401,7 @@ fn find_position_with_fuzz_and_more_delta<T: PartialEq>(
     Ok(None)
 }
 
-// Display impl for Patch uses Delta's Display implementation via `{}`
-impl<T: fmt::Debug> fmt::Display for Patch<T> {
+impl<T: fmt::Display> fmt::Display for Patch<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Patch{{deltas=[")?;
         for (i, d) in self.deltas.iter().enumerate() {

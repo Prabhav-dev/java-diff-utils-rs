@@ -114,6 +114,44 @@ impl<R: Read> UnifiedDiffReader<R> {
         }
     }
 
+    pub fn parse_file_names(line: &str) -> (String, String) {
+        let split: Vec<&str> = line.split(' ').collect();
+        let from = Regex::new(r"^a/")
+            .unwrap()
+            .replace(split.get(2).copied().unwrap_or(""), "")
+            .to_string();
+        let to = Regex::new(r"^b/")
+            .unwrap()
+            .replace(split.get(3).copied().unwrap_or(""), "")
+            .to_string();
+        (from, to)
+    }
+
+    pub fn extract_file_name(line: &str) -> String {
+        let mut clean_line = line.to_string();
+        if let Some(m) = TIMESTAMP_REGEXP.find(line) {
+            clean_line = clean_line[..m.start()].to_string();
+        }
+        let first_part = clean_line.split('\t').next().unwrap_or(&clean_line);
+        let sliced = if first_part.len() >= 4 {
+            &first_part[4..]
+        } else {
+            first_part
+        };
+
+        Regex::new(r"^(a|b|old|new)/")
+            .unwrap()
+            .replace(sliced, "")
+            .trim()
+            .to_string()
+    }
+
+    pub fn extract_timestamp(line: &str) -> Option<String> {
+        TIMESTAMP_REGEXP
+            .find(line)
+            .map(|m| m.as_str().to_string())
+    }
+
     /// Helper static function to parse an input stream into a `UnifiedDiff`.
     pub fn parse_unified_diff(reader: R) -> Result<UnifiedDiff, UnifiedDiffParserException> {
         let mut parser = UnifiedDiffReader::new(reader);
@@ -264,13 +302,6 @@ impl<R: Read> UnifiedDiffReader<R> {
         }
     }
 
-    pub fn parse_file_names(line: &str) -> (String, String) {
-        let split: Vec<&str> = line.split(' ').collect();
-        let from = Regex::new(r"^a/").unwrap().replace(split.get(2).copied().unwrap_or(""), "").to_string();
-        let to = Regex::new(r"^b/").unwrap().replace(split.get(3).copied().unwrap_or(""), "").to_string();
-        (from, to)
-    }
-
     fn init_file_if_necessary(&mut self) -> Result<(), UnifiedDiffParserException> {
         if !self.original_txt.is_empty() || !self.revised_txt.is_empty() {
             return Err(UnifiedDiffParserException::new("Invalid state in reader"));
@@ -336,8 +367,8 @@ impl<R: Read> UnifiedDiffReader<R> {
         }
 
         if FROM_FILE_RE.is_match(line) {
-            let name = self.extract_file_name(line);
-            let ts = self.extract_timestamp(line);
+            let name = Self::extract_file_name(line);
+            let ts = Self::extract_timestamp(line);
             if let Some(ref mut file) = self.actual_file {
                 file.set_from_file(name);
                 if let Some(t) = ts {
@@ -348,8 +379,8 @@ impl<R: Read> UnifiedDiffReader<R> {
         }
 
         if TO_FILE_RE.is_match(line) {
-            let name = self.extract_file_name(line);
-            let ts = self.extract_timestamp(line);
+            let name = Self::extract_file_name(line);
+            let ts = Self::extract_timestamp(line);
             if let Some(ref mut file) = self.actual_file {
                 file.set_to_file(name);
                 if let Some(t) = ts {
@@ -560,30 +591,5 @@ impl<R: Read> UnifiedDiffReader<R> {
             self.del_line_idx = 0;
             self.add_line_idx = 0;
         }
-    }
-
-    fn extract_file_name(&self, line: &str) -> String {
-        let mut clean_line = line.to_string();
-        if let Some(m) = TIMESTAMP_REGEXP.find(line) {
-            clean_line = clean_line[..m.start()].to_string();
-        }
-        let first_part = clean_line.split('\t').next().unwrap_or(&clean_line);
-        let sliced = if first_part.len() >= 4 {
-            &first_part[4..]
-        } else {
-            first_part
-        };
-
-        Regex::new(r"^(a|b|old|new)/")
-            .unwrap()
-            .replace(sliced, "")
-            .trim()
-            .to_string()
-    }
-
-    fn extract_timestamp(&self, line: &str) -> Option<String> {
-        TIMESTAMP_REGEXP
-            .find(line)
-            .map(|m| m.as_str().to_string())
     }
 }

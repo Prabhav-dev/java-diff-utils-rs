@@ -1,5 +1,4 @@
 //! Generates `DiffRow` instances for side-by-side or inline text views.
-
 use crate::algorithm::myers::myers_linear::compute_diff;
 use crate::patch::chunk::Chunk;
 use crate::patch::delta::Delta;
@@ -9,8 +8,17 @@ use crate::text::delta_merge::delta_merge_utils::DeltaMergeUtils;
 use crate::text::delta_merge::inline_delta_merge_info::InlineDeltaMergeInfo;
 use crate::text::diff_row::{DiffRow, Tag};
 use crate::text::string_utils;
+use lazy_static::lazy_static;
 use regex::Regex;
 use std::sync::Arc;
+
+lazy_static! {
+    pub static ref SPLIT_BY_WORD_PATTERN: Regex =
+        Regex::new(r"\s+|[,.\[\](){}/\\*+\-#<>;:&']+").unwrap();
+    static ref WHITESPACE_RE: Regex = Regex::new(r"\s+").unwrap();
+    pub static ref WHITESPACE_EQUALITIES_MERGER: InlineDeltaMergerFn =
+        whitespace_equalities_merger();
+}
 
 // Type alias definitions for flexible closures
 pub type EqualizerFn = Arc<dyn Fn(&str, &str) -> bool + Send + Sync>;
@@ -22,15 +30,7 @@ pub type InlineDeltaMergerFn =
 
 /// Adjusts whitespace in a string by collapsing consecutive whitespaces into a single space.
 pub fn adjust_whitespace(raw: &str) -> String {
-    lazy_static_whitespace_re().replace_all(raw.trim(), " ").to_string()
-}
-
-fn lazy_static_whitespace_re() -> Regex {
-    Regex::new(r"\s+").unwrap()
-}
-
-fn lazy_static_split_word_re() -> Regex {
-    Regex::new(r"\s+|[,.\[\](){}/\\*+\-#<>;:&']+").unwrap()
+    WHITESPACE_RE.replace_all(raw.trim(), " ").to_string()
 }
 
 /// Default equalizer checking strict string equality.
@@ -55,7 +55,7 @@ pub fn splitter_by_character() -> SplitterFn {
 
 /// Word-by-word splitter.
 pub fn splitter_by_word() -> SplitterFn {
-    Arc::new(|line| split_string_preserve_delimiter(line, &lazy_static_split_word_re()))
+    Arc::new(|line| split_string_preserve_delimiter(line, &SPLIT_BY_WORD_PATTERN))
 }
 
 /// Default inline delta merger returning unmodified deltas.
@@ -65,13 +65,11 @@ pub fn default_inline_delta_merger() -> InlineDeltaMergerFn {
 
 /// Whitespace equalities inline delta merger.
 pub fn whitespace_equalities_merger() -> InlineDeltaMergerFn {
-    let re = Regex::new(r"\s+").unwrap();
     Arc::new(move |info| {
-        let re_clone = re.clone();
-        DeltaMergeUtils::merge_inline_deltas(info, move |equalities| {
+        DeltaMergeUtils::merge_inline_deltas(info, move |equalities: &[String]| {
             equalities
                 .iter()
-                .all(|s| re_clone.replace_all(s, "").is_empty())
+                .all(|s| WHITESPACE_RE.replace_all(s, "").is_empty())
         })
     })
 }
@@ -181,6 +179,11 @@ impl DiffRowGenerator {
         Builder::new()
     }
 
+    /// Helper to forward delimiter splitting.
+    pub fn split_string_preserve_delimiter(str_input: &str, pattern: &Regex) -> Vec<String> {
+        split_string_preserve_delimiter(str_input, pattern)
+    }
+
     /// Generates `DiffRow` items comparing two string sequences.
     pub fn generate_diff_rows(
         &self,
@@ -207,16 +210,16 @@ impl DiffRowGenerator {
     ) -> Vec<DiffRow> {
         let mut diff_rows = Vec::new();
         let mut end_pos = 0;
-        let delta_list = patch.deltas();
+        let delta_list = patch.deltas().to_vec();
 
         if self.decompress_deltas {
-            for original_delta in delta_list {
+            for original_delta in &delta_list {
                 for delta in self.decompress_deltas_internal(original_delta) {
                     end_pos = self.transform_delta_into_diff_row(original, end_pos, &mut diff_rows, &delta);
                 }
             }
         } else {
-            for delta in delta_list {
+            for delta in &delta_list {
                 end_pos = self.transform_delta_into_diff_row(original, end_pos, &mut diff_rows, delta);
             }
         }
@@ -368,7 +371,7 @@ impl DiffRowGenerator {
         )
     }
 
-    fn normalize_lines(&self, list: &[String]) -> Vec<String> {
+    pub fn normalize_lines(&self, list: &[String]) -> Vec<String> {
         if self.report_lines_unchanged {
             list.to_vec()
         } else {
@@ -428,6 +431,7 @@ impl DiffRowGenerator {
                             [inline_rev.position()..inline_rev.position() + inline_rev.len()];
                         let pos = inline_orig.position().min(orig_list.len());
                         for (idx, item) in insert_slice.iter().enumerate() {
+                            let item: &String = item;
                             orig_list.insert(pos + idx, item.clone());
                         }
                         wrap_in_tag(
@@ -457,6 +461,7 @@ impl DiffRowGenerator {
                             [inline_rev.position()..inline_rev.position() + inline_rev.len()];
                         let pos = (inline_orig.position() + inline_orig.len()).min(orig_list.len());
                         for (idx, item) in insert_slice.iter().enumerate() {
+                            let item: &String = item;
                             orig_list.insert(pos + idx, item.clone());
                         }
                         wrap_in_tag(
@@ -717,6 +722,11 @@ impl Builder {
         F: Fn(&InlineDeltaMergeInfo<String>) -> Vec<Delta<String>> + Send + Sync + 'static,
     {
         self.inline_delta_merger = Arc::new(merger);
+        self
+    }
+
+    pub fn inline_delta_merger_arc(mut self, merger: InlineDeltaMergerFn) -> Self {
+        self.inline_delta_merger = merger;
         self
     }
 

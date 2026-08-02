@@ -2,6 +2,7 @@
 use crate::algorithm::{
     change::{Change, DeltaType},
     diff_algorithm_listener::DiffAlgorithmListener,
+    DiffAlgorithm,
 };
 
 /// A Snake represents a diagonal run of identical elements between two sequences.
@@ -10,6 +11,47 @@ struct Snake {
     start: usize,
     end: usize,
     diag: isize,
+}
+
+pub struct MyersDiffWithLinearSpace<T> {
+    equalizer: Option<Box<dyn Fn(&T, &T) -> bool>>,
+}
+
+impl<T> Default for MyersDiffWithLinearSpace<T> {
+    fn default() -> Self {
+        Self { equalizer: None }
+    }
+}
+
+impl<T> MyersDiffWithLinearSpace<T> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_equalizer<F>(equalizer: F) -> Self
+    where
+        F: Fn(&T, &T) -> bool + 'static,
+    {
+        Self {
+            equalizer: Some(Box::new(equalizer)),
+        }
+    }
+}
+
+impl<T: PartialEq> DiffAlgorithm<T> for MyersDiffWithLinearSpace<T> {
+    fn diff_with_listener(
+        &self,
+        source: &[T],
+        target: &[T],
+        listener: &mut dyn DiffAlgorithmListener,
+    ) -> Vec<Change> {
+        let mut ws = LinearWorkspace::new();
+        if let Some(ref eq) = self.equalizer {
+            compute_diff_full(source, target, eq, &mut ws, Some(listener))
+        } else {
+            compute_diff_full(source, target, |a, b| a == b, &mut ws, Some(listener))
+        }
+    }
 }
 
 /// Pre-allocated workspace to avoid dynamic vector re-allocations during recursive divide-and-conquer steps.
@@ -66,7 +108,7 @@ pub fn compute_diff_full<T, F, L>(
 ) -> Vec<Change>
 where
     F: Fn(&T, &T) -> bool,
-    L: DiffAlgorithmListener,
+    L: DiffAlgorithmListener + ?Sized,
 {
     if source.is_empty() && target.is_empty() {
         return Vec::new();
@@ -159,7 +201,7 @@ fn partition_and_build<T, F, L>(
     max_steps: usize,
 ) where
     F: Fn(&T, &T) -> bool,
-    L: DiffAlgorithmListener,
+    L: DiffAlgorithmListener + ?Sized,
 {
     if let Some(l) = listener.as_deref_mut() {
         let step = (region.src_end - region.src_start) / 2 + (region.tgt_end - region.tgt_start) / 2;
@@ -193,7 +235,7 @@ fn partition_and_build<T, F, L>(
             } else {
                 push_change(script, DeltaType::Insert, i, i, j, j + 1);
                 j += 1;
-}
+            }
         }
     } else if let Some(snake) = middle_snake {
         let mid_tgt_1 = (snake.start as isize - snake.diag) as usize;
@@ -312,7 +354,6 @@ where
             let mut x = ws.v_up[idx].saturating_sub(1);
             let mut y = (x as isize - region.src_start as isize + region.tgt_start as isize - k) as usize;
 
-            // FIX: Added upper bound checks `x < region.src_end` and `y < region.tgt_end`
             while x >= region.src_start
                 && y >= region.tgt_start
                 && x < region.src_end

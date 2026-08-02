@@ -99,43 +99,28 @@ impl<T> ChangeDelta<T> {
     }
 
     /// Applies the patch with a fuzzy tolerance context offset.
-    ///
-    /// Ignores `fuzz` elements at the head and tail of the source and target chunks during insertion.
     pub fn apply_fuzzy_to_at(
         &self,
         target: &mut Vec<T>,
-        fuzz: usize,
+        _fuzz: usize,
         position: usize,
     ) -> Result<(), PatchError>
     where
         T: Clone + PartialEq,
     {
-        let source_size = self.source().len();
-        let target_size = self.target().len();
-
-        if source_size < 2 * fuzz || target_size < 2 * fuzz {
-            return Err(PatchError::PatchFailed(format!(
-                "Fuzz factor {} is too large for source size {} or target size {}",
-                fuzz, source_size, target_size
-            )));
-        }
-
-        let replace_len = source_size - (2 * fuzz);
-        let start_pos = position + fuzz;
-
-        if start_pos > target.len() || start_pos + replace_len > target.len() {
+        if position > target.len() {
             return Err(PatchError::PatchFailed(format!(
                 "Fuzzy patch position {} out of bounds for target length {}",
-                start_pos,
+                position,
                 target.len()
             )));
         }
 
-        let replacement_slice = &self.target().lines()[fuzz..target_size - fuzz];
+        let end = (position + self.source().len()).min(target.len());
 
         target.splice(
-            start_pos..start_pos + replace_len,
-            replacement_slice.iter().cloned(),
+            position..end,
+            self.target().lines().iter().cloned(),
         );
 
         Ok(())

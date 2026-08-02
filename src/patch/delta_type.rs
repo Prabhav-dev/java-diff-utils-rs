@@ -1,7 +1,8 @@
 use std::fmt;
+use serde::{Deserialize, Serialize};
 
 /// Specifies the classification type of a sequence modification.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum DeltaType {
     /// A block of data in the original sequence is replaced by another block of data.
     Change,

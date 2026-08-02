@@ -1,10 +1,12 @@
 use std::fmt;
+use serde::{Deserialize, Serialize};
 
 use super::error::PatchError;
 use super::verify_chunk::VerifyChunk;
 
 /// Represents a contiguous sub-sequence (chunk) of items participating in a diff/patch operation.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[serde(bound(serialize = "T: Serialize", deserialize = "T: Deserialize<'de>"))]
 pub struct Chunk<T> {
     position: usize,
     lines: Vec<T>,
@@ -46,6 +48,7 @@ impl<T> Chunk<T> {
     {
         let len = self.len();
 
+        // Zero-length chunks (Insertions) can be placed at any index within target bounds
         if len == 0 {
             if position > target.len() {
                 return Ok(VerifyChunk::PositionOutOfTarget);
@@ -53,6 +56,7 @@ impl<T> Chunk<T> {
             return Ok(VerifyChunk::Ok);
         }
 
+        // Fuzz cannot exceed half the chunk size
         if len < 2 * fuzz {
             return Ok(VerifyChunk::PositionOutOfTarget);
         }
