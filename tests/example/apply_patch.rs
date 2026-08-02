@@ -4,8 +4,8 @@ use std::error::Error;
 use my_diff_crate::diff_utils::DiffUtils;
 use my_diff_crate::UnifiedDiffUtils;
 
-const ORIGINAL_PATH: &str = "mocks/issue10_base.txt";
-const PATCH_PATH: &str = "mocks/issue10_patch.txt";
+const ORIGINAL_PATH: &str = "tests/fixtures/issue10_base.txt";
+const PATCH_PATH: &str = "tests/fixtures/issue10_patch.txt";
 
 #[test]
 fn test_apply_patch_example() -> Result<(), Box<dyn Error>> {
