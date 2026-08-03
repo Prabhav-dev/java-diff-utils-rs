@@ -218,11 +218,6 @@ where
             let mut i = i_start;
             let mut j = i as isize - k;
 
-            // Java's PathNode constructor collapses a non-snake node's `prev`
-            // to the nearest snake/bootstrap ancestor (`prev.previousSnake()`),
-            // rather than storing the immediate parent. This is essential:
-            // without it, buildRevision walks through every intermediate
-            // non-snake step instead of jumping straight between diff edits.
             let collapsed_prev = PathNode::previous_snake(&ws.arena, prev_idx);
 
             let node_idx = ws.arena.len();
