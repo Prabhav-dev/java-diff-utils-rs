@@ -46,44 +46,18 @@ impl<T> Chunk<T> {
     where
         T: PartialEq,
     {
-        let len = self.len();
-
-        if len == 0 {
-            if position > target.len() {
-                return Ok(VerifyChunk::PositionOutOfTarget);
-            }
-            return Ok(VerifyChunk::Ok);
-        }
-
-        if fuzz >= len {
-            return Ok(VerifyChunk::Ok);
-        }
-
         let start_index = fuzz;
-        let end_index = len.saturating_sub(fuzz);
+        let last_index = self.len().saturating_sub(fuzz);
+        let last = position + self.len().saturating_sub(1);
 
-        if end_index <= start_index {
-            return Ok(VerifyChunk::Ok);
-        }
-
-        let check_len = end_index - start_index;
-
-        // FIX: Use saturating_add to prevent overflow panic on large offsets
-        if position.saturating_add(start_index).saturating_add(check_len) > target.len() {
+        if position.saturating_add(fuzz) > target.len() || last.saturating_sub(fuzz) > target.len()
+        {
             return Ok(VerifyChunk::PositionOutOfTarget);
         }
 
-        for i in 0..check_len {
-            let chunk_idx = start_index + i;
-            
-            // FIX: Safely calculate target_idx
-            let target_idx = position.saturating_add(start_index).saturating_add(i);
-
-            if target_idx >= target.len() {
-                return Ok(VerifyChunk::PositionOutOfTarget);
-            }
-
-            if target[target_idx] != self.lines[chunk_idx] {
+        for i in start_index..last_index {
+            let target_idx = position + i;
+            if target_idx >= target.len() || target[target_idx] != self.lines[i] {
                 return Ok(VerifyChunk::ContentDoesNotMatchTarget);
             }
         }

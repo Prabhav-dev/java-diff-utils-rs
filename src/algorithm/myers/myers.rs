@@ -218,13 +218,20 @@ where
             let mut i = i_start;
             let mut j = i as isize - k;
 
+            // Java's PathNode constructor collapses a non-snake node's `prev`
+            // to the nearest snake/bootstrap ancestor (`prev.previousSnake()`),
+            // rather than storing the immediate parent. This is essential:
+            // without it, buildRevision walks through every intermediate
+            // non-snake step instead of jumping straight between diff edits.
+            let collapsed_prev = PathNode::previous_snake(&ws.arena, prev_idx);
+
             let node_idx = ws.arena.len();
             ws.arena.push(PathNode {
                 i,
                 j,
                 is_snake: false,
                 is_bootstrap: false,
-                prev: Some(prev_idx),
+                prev: collapsed_prev,
             });
 
             while i < n && j >= 0 && (j as usize) < m && equalizer(&orig[i], &rev[j as usize]) {
@@ -312,22 +319,6 @@ fn build_revision(arena: &[PathNode], head_idx: usize) -> Vec<Change> {
         };
     }
 
-    raw_changes.reverse();
-
-    let mut merged: Vec<Change> = Vec::with_capacity(raw_changes.len());
-    for change in raw_changes {
-        if let Some(last) = merged.last_mut() {
-            if last.delta_type == change.delta_type
-                && last.end_original == change.start_original
-                && last.end_revised == change.start_revised
-            {
-                last.end_original = change.end_original;
-                last.end_revised = change.end_revised;
-                continue;
-            }
-        }
-        merged.push(change);
-    }
-
-    merged
+raw_changes.reverse();
+    raw_changes
 }

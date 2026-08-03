@@ -3,7 +3,7 @@ use my_diff_crate::patch::conflict_produces_merge_conflict;
 
 #[test]
 fn test_patch_change_with_exception_processor() {
-    let change_test_from = vec![
+    let mut change_test_from = vec![
         "aaa".to_string(),
         "bbb".to_string(),
         "ccc".to_string(),
@@ -16,8 +16,10 @@ fn test_patch_change_with_exception_processor() {
         "ddd".to_string(),
     ];
 
-    let patch = DiffUtils::diff(&change_test_from, &change_test_to, None)
+let patch = DiffUtils::diff(&change_test_from, &change_test_to, None)
     .with_conflict_output(conflict_produces_merge_conflict);
+
+    change_test_from[2] = "CDC".to_string();
 
     let data = DiffUtils::patch(&change_test_from, &patch)
         .expect("Patch application failed");

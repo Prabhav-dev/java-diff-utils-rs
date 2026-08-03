@@ -19,26 +19,23 @@ impl PathNode {
         format!("{}", PathFormatter { arena, start_idx })
     }
 
-    // Walk back up to find the parent snake node
-    pub fn previous_snake(arena: &[PathNode], curr_idx: usize) -> Option<usize> {
-        let node = arena.get(curr_idx)?;
+    /// Exact port of Java's `PathNode.previousSnake()`:
+    ///   if (isBootstrap()) return null;
+    ///   if (!isSnake() && prev != null) return prev.previousSnake();
+    ///   return this;
+    ///
+    /// Called on a node (by index) the same way Java calls `somePrev.previousSnake()`.
+    pub fn previous_snake(arena: &[PathNode], idx: usize) -> Option<usize> {
+        let node = arena[idx];
         if node.is_bootstrap {
             return None;
         }
-
-        let mut curr = node.prev;
-        while let Some(idx) = curr {
-            let n = arena.get(idx)?;
-            if n.is_snake {
-                return Some(idx);
+        if !node.is_snake {
+            if let Some(p) = node.prev {
+                return PathNode::previous_snake(arena, p);
             }
-            if n.is_bootstrap {
-                break;
-            }
-            curr = n.prev;
         }
-
-        None
+        Some(idx)
     }
 }
 

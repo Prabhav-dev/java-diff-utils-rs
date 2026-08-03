@@ -2,7 +2,7 @@
 
 //! Transpiled Unit Tests for `com.github.difflib.algorithm.myers.WithMyersDiffWithLinearSpacePatchTest`
 
-use my_diff_crate::algorithm::myers::compute_diff as compute_diff_linear;
+use my_diff_crate::algorithm::myers::myers_linear::compute_diff as compute_diff_linear;
 use my_diff_crate::patch::conflict_formatter::conflict_produces_merge_conflict;
 use my_diff_crate::patch::{
     error::PatchFailedException,
