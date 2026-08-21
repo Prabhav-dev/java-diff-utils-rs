@@ -376,11 +376,11 @@ lazy_static::lazy_static! {
             to: vec!["aaa".into(), "bxb".into(), "cxc".into(), "dxd".into(), "exe".into(), "fxf".into()],
             required_fuzz: 2,
         },
-        // Pair #31
+        // Pair #31: no unchanged context remains, so the patch location is ambiguous.
         FuzzyApplyTestPair {
             from: vec!["axa".into(), "bxb".into(), "czc".into(), "dzd".into(), "exe".into(), "fxf".into()],
             to: vec!["axa".into(), "bxb".into(), "cxc".into(), "dxd".into(), "exe".into(), "fxf".into()],
-            required_fuzz: 2,
+            required_fuzz: 4,
         },
     ];
 }

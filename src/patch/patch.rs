@@ -40,6 +40,8 @@ impl<'a, T> PatchApplyingContext<'a, T> {
 pub struct Patch<T> {
     deltas: Vec<Delta<T>>,
     #[serde(skip, default)]
+    fuzzy_source: Option<Vec<T>>,
+    #[serde(skip, default)]
     conflict_output: Option<Box<dyn ConflictOutput<T>>>,
 }
 
@@ -52,13 +54,14 @@ impl<T: fmt::Debug> fmt::Debug for Patch<T> {
     }
 }
 
-impl<T> Clone for Patch<T>
+impl<T: Clone> Clone for Patch<T>
 where
     Delta<T>: Clone,
 {
     fn clone(&self) -> Self {
         Self {
             deltas: self.deltas.clone(),
+            fuzzy_source: self.fuzzy_source.clone(),
             conflict_output: None,
         }
     }
@@ -88,6 +91,7 @@ impl<T> Patch<T> {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             deltas: Vec::with_capacity(capacity),
+            fuzzy_source: None,
             conflict_output: None,
         }
     }
@@ -197,11 +201,63 @@ impl<T> Patch<T> {
         let mut ctx = PatchApplyingContext::new(&mut result, max_fuzz);
 
         let mut sorted_deltas: Vec<&Delta<T>> = self.deltas.iter().collect();
-        sorted_deltas.sort_by_key(|d| d.source().position());
+        sorted_deltas.sort_by_key(|d| (d.source().position(), d.source().is_empty()));
 
-        let mut cumulative_offset: isize = 0;
+        let alignment_offset = match self.fuzzy_source.as_deref() {
+            Some(source) => find_sequence_offset(source, target).ok_or_else(|| {
+                PatchError::PatchFailed(
+                    "Cannot apply fuzzy patch without unchanged source context".into(),
+                )
+            })?,
+            None => 0,
+        };
+        let mut cumulative_offset = alignment_offset;
 
         for delta in sorted_deltas {
+            if let Some(source) = self.fuzzy_source.as_deref() {
+                let source_position = delta.source().position();
+                let aligned_position = source_position as isize + alignment_offset;
+                if aligned_position >= 0 && delta.source().len() > 0 {
+                    let aligned_position = aligned_position as usize;
+                    let source_fuzz = (0..=delta.source().len())
+                        .find(|fuzz| {
+                            delta
+                                .source()
+                                .verify_chunk_at(target, *fuzz, aligned_position)
+                                .is_ok_and(|status| status == VerifyChunk::Ok)
+                        })
+                        .unwrap_or(delta.source().len());
+                    let mut required_fuzz = source_fuzz;
+
+                    if source_fuzz > 0 {
+                        for context_index in [
+                            source_position.checked_sub(1),
+                            source_position.checked_add(delta.source().len()),
+                        ]
+                        .into_iter()
+                        .flatten()
+                        {
+                            let target_index = context_index as isize + alignment_offset;
+                            if context_index < source.len()
+                                && target_index >= 0
+                                && (target_index as usize) < target.len()
+                                && source[context_index] != target[target_index as usize]
+                            {
+                                required_fuzz += 1;
+                            }
+                        }
+                        required_fuzz = required_fuzz.min(2);
+                    }
+
+                    if max_fuzz < required_fuzz {
+                        return Err(PatchError::PatchFailed(format!(
+                            "Fuzzy match requires fuzz {}, but maximum is {}",
+                            required_fuzz, max_fuzz
+                        )));
+                    }
+                }
+            }
+
             let src_pos = delta.source().position() as isize;
             let default_pos = src_pos + cumulative_offset;
 
@@ -268,6 +324,7 @@ impl<T> Patch<T> {
         T: Clone,
     {
         let mut patch = Self::with_capacity(changes.len());
+        patch.fuzzy_source = Some(original.to_vec());
         let mut start_original = 0;
         let mut start_revised = 0;
 
@@ -314,10 +371,41 @@ fn build_chunk<T: Clone>(start: usize, end: usize, data: &[T]) -> Chunk<T> {
     Chunk::with_lines(start, lines)
 }
 
+fn find_sequence_offset<T: PartialEq>(source: &[T], target: &[T]) -> Option<isize> {
+    let min_offset = -(source.len() as isize);
+    let max_offset = target.len() as isize;
+    let mut best_offset: isize = 0;
+    let mut best_score = 0;
+
+    for offset in min_offset..=max_offset {
+        let score = source
+            .iter()
+            .enumerate()
+            .filter(|(index, line)| {
+                let target_index = *index as isize + offset;
+                target_index >= 0
+                    && (target_index as usize) < target.len()
+                    && target[target_index as usize] == **line
+            })
+            .count();
+
+        if score > best_score || (score == best_score && offset.abs() < best_offset.abs()) {
+            best_score = score;
+            best_offset = offset;
+        }
+    }
+
+    (best_score > 0).then_some(best_offset)
+}
+
 fn find_position_fuzzy<T: PartialEq>(
     ctx: &mut PatchApplyingContext<'_, T>,
     delta: &Delta<T>,
 ) -> Result<Option<usize>, PatchError> {
+    if delta.source().is_empty() && ctx.default_position < ctx.last_patch_end as usize {
+        return Ok(Some(ctx.last_patch_end as usize));
+    }
+
     for fuzz in 0..=ctx.max_fuzz {
         ctx.current_fuzz = fuzz;
         if let Some(pos) = find_position_with_fuzz(ctx, delta, fuzz)? {
@@ -416,6 +504,7 @@ impl<T: fmt::Display> fmt::Display for Patch<T> {
             }
             write!(f, "{}", d)?;
         }
-        write!(f, "]}}")
+        write!(f, "]}}")?;
+        Ok(())
     }
 }

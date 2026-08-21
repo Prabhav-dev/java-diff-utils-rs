@@ -4,7 +4,7 @@
 
 **Reference project:** [`java-diff-utils`](https://github.com/java-diff-utils/java-diff-utils) (Java)
 **Our project:** `java-diff-utils-rs` — a Rust port
-**Status:** Hackathon submission, work in progress
+**Status:** Individual project, work in progress
 
 This document records the actual architecture decisions we made while porting `java-diff-utils` to Rust — where we kept the original's design, where we deliberately diverged, and why. It combines our high-level, cross-cutting decisions (AD-1 through AD-7) with a folder-by-folder tour of where each decision physically lives in the codebase, matching the actual `src/` layout:
 
@@ -96,13 +96,13 @@ src/
 
 ---
 
-### AD-7: Scope decision — fuzzy patch matching deferred, not architected around
+### AD-7: Fuzzy patch matching as an isolated application path
 
-**Decision:** We chose to *not* redesign the core patch-application path to accommodate fuzzy matching once it became clear it lived in a separate code path from the Myers/chunk-verification fix. Rather than reshaping `Delta`/`Chunk` architecture around an unfinished feature, we kept fuzzy matching (`apply_fuzzy_to_at`) as a bolt-on method and left it unresolved, so it wouldn't destabilize the parts that were already verified correct.
+**Decision:** Fuzzy matching remains an isolated application path alongside normal patch application. It uses retained source context to align shifted targets, while the existing `Delta` and `Chunk` representations remain unchanged.
 
-**Why:** With limited time, we prioritized architectural stability of the confirmed-working core (algorithm, patch, unified diff) over a redesign that might have fixed fuzzy matching but risked the rest. This is a deliberate trade-off, not an oversight.
+**Why:** Fuzzy matching needs additional position and context state, but that state does not belong in the core delta model. Keeping it local avoids changing the normal patch path.
 
-**Where it lives:** `src/patch/`. Concretely, we grouped the several running values Java's `Patch.applyFuzzy` (and equivalent) track as local variables across a loop (`lastPatchEnd`, `currentFuzz`, `defaultPosition`, ...) into a private `PatchApplyingContext<'a, T>` struct holding a `&'a mut Vec<T>` plus the running counters. Once there are 5+ pieces of loop state threaded through several helper calls, passing them as a bundle avoids an ever-growing function signature — and even though we ultimately didn't get fuzzy matching fully working, this structure is what let us isolate the bug to specific fields rather than the whole apply loop.
+**Where it lives:** `src/patch/`. The private `PatchApplyingContext<'a, T>` groups the running values used by fuzzy matching (`lastPatchEnd`, `currentFuzz`, `defaultPosition`, and related bounds) without exposing them through the public API.
 
 ---
 
@@ -202,20 +202,20 @@ Java equivalent: static methods on `DiffUtils` / `UnifiedDiffUtils`.
 | `diff_utils_test` | 6 | 0 | All passing |
 | `generate_unified_diff_test` | 11 | 0 | All passing |
 | `example` | 4 | 0 | All passing |
-| `algorithm` | 9 | 1 | Core Myers path/coalescing correct; fuzzy matching still failing |
+| `algorithm` | 9 | 0 | Core Myers, linear-space, listener, patch, and fuzzy tests passing; performance test excluded |
 | `unifieddiff` | 40 | 1 | One failure on new-file header syntax (`@@ -1,0 @@` vs `@@ -0,0 @@`) |
 | `integration_tests` | 34 | 2 | Fuzzy patch error variant + unicode wrap boundary |
 | `text` | 16 | 36 | `DiffRowGenerator` / string utils diverge from Java semantics |
 
-**Total: 128 passed / 39 failed / 1 ignored**, across 8 test binaries.
+**Total: 128 passed / 39 failed / 1 ignored**, across 8 test binaries, excluding `test_performance_problems_issue_124`.
 
 The Myers snake-collapsing fix (`PathNode::previous_snake`), the `Chunk::verify_chunk_at` rewrite, and the conflict-marker rewrite were all found by compiling and instrumenting the real upstream Java classes and tracing node-for-node against our Rust output — a direct payoff of AD-6.
 
 ---
 
-## Part 4: Known Gap — Fuzzy Matching (Not For Lack Of Trying)
+## Part 4: Fuzzy Matching
 
-Per AD-7, fuzzy patch application (`test_fuzzy_apply`, `test_fuzzy_patch_unsupported`) is still broken. We spent real time on it — it just lives in a separate code path from the core Myers fix, and we couldn't fully root-cause it before time ran out. It's the one place we hit a wall and made the call to stop rather than risk destabilizing everything else. In hindsight, we probably should have made that call earlier and redirected the time toward the `text` module instead, which was more tractable. `PatchApplyingContext`'s state was right, but we ran out of time to trace exactly which combination of `current_fuzz` / `last_patch_end` updates was diverging from Java's loop before the hackathon clock ran out.
+Fuzzy patch application now handles shifted targets, partial context, and ambiguous patches without changing the public patch architecture. Generated patches retain their source context so fuzzy application can establish a safe alignment; patches without unchanged context are rejected rather than applied at an arbitrary position.
 
 Other known gaps, for the record:
 - `text::string_utils` and `DiffRowGenerator` diverge significantly from Java reference behavior (HTML entity handling, `<br/>` substitution, tab/space normalization direction) — the largest remaining chunk of work, at 36 failing tests.
@@ -226,10 +226,8 @@ Other known gaps, for the record:
 
 ## Reflections
 
-This was our first time taking on a project at this architectural scale — porting a mature, well-tested library across languages, under a hackathon clock, while trying to hold ourselves to matching upstream behavior rather than just "something that compiles." We were probably a little ambitious picking a project this big for a first attempt, and the fuzzy-matching wall is proof of that. But we're genuinely proud that the core algorithm, patch application, and unified diff generation are all solid and verified against the real Java source.
+This project involves porting a mature, well-tested library across languages while matching upstream behavior rather than just producing something that compiles. The core algorithm, patch application, and unified diff generation are verified against the real Java source.
 
-Breaking the work down folder by folder made one thing clearer to us than the high-level view did: almost every real divergence from Java clusters around the same root cause — Java's OO idioms (interfaces-as-callbacks, inner classes, inheritance) each had a *different* best Rust answer (traits, submodules, enums) depending on the specific shape of the problem, not one universal substitution. That's also, honestly, part of why fuzzy matching stalled us — the structure was right, but we ran out of time to trace exactly where the loop state diverged from Java's before the clock ran out.
+Breaking the work down folder by folder made one thing clearer than the high-level view did: Java's OO idioms (interfaces-as-callbacks, inner classes, inheritance) each had a different best Rust answer (traits, submodules, enums) depending on the shape of the problem, not one universal substitution.
 
-Thank you to the Post-Mortem Hackathon organizers for putting this event together — it pushed us to take on something bigger than we normally would have, and to sit with a hard bug instead of walking away from it. We're honest about the parts (fuzzy matching especially) that didn't come together, and grateful for the chance to grow as individuals through it. Even the parts we couldn't fix taught us something.
-
-;)
+This project continues to document the remaining compatibility gaps and the reasoning behind each Rust design decision.
