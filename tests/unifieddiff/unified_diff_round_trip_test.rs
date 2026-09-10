@@ -120,7 +120,6 @@ fn test_diff_issue_10() {
 }
 
 #[test]
-#[ignore = "Disabled in original Java test"]
 fn test_patch_with_no_deltas() {
     let lines1 = file_to_lines("issue11_1.txt");
     let lines2 = file_to_lines("issue11_2.txt");

@@ -1,4 +1,4 @@
-﻿# Bug Fixes & Port Completion Log
+# Bug Fixes & Port Completion Log
 
 This document chronicles the fixes applied to close all remaining failures and achieve 100% test compatibility with upstream `java-diff-utils`.
 
@@ -69,6 +69,18 @@ This document chronicles the fixes applied to close all remaining failures and a
 
 ---
 
+## 5. Enabled & Verified Zero-Delta Patch Round-Trip
+
+* **Affected Suite / Test**: `tests/unifieddiff.rs` (`unified_diff_round_trip_test::test_patch_with_no_deltas`)
+* **Files Modified**:
+  * `tests/unifieddiff/unified_diff_round_trip_test.rs`
+* **Details**:
+  This test was originally marked `@Disabled` upstream in the Java repository (`UnifiedDiffRoundTripTest.java`) and carried over with `#[ignore = "Disabled in original Java test"]`.
+* **Fix & Verification**:
+  Un-ignored the test in Rust; verified that `DiffUtils::diff`, `UnifiedDiffWriter`, `UnifiedDiffReader`, and `apply_patch_to` successfully round-trip identical inputs producing zero deltas. All 42 tests in `tests/unifieddiff.rs` now pass with 0 ignored.
+
+---
+
 ## Final Verification Summary
 
 All test suites now pass completely:
@@ -77,8 +89,9 @@ All test suites now pass completely:
 * `tests/patch.rs`: 8/8 passed
 * `tests/example.rs`: 4/4 passed
 * `tests/generate_unified_diff_test.rs`: 11/11 passed
-* `tests/unifieddiff.rs`: 41/41 passed (1 ignored upstream matching Java)
+* `tests/unifieddiff.rs`: 42/42 passed (0 ignored)
 * `tests/integration_tests.rs`: 36/36 passed
 * `tests/text.rs`: 52/52 passed
 
-**Total: 168 passed, 0 failed, 1 ignored (100% active test pass rate)**
+**Total: 169 passed, 0 failed, 0 ignored (100% test pass rate)**
+

@@ -9,7 +9,7 @@ A pure Rust port of `java-diff-utils` — implementing the Myers diff algorithm,
 
 ## Status: Fully Ported & 100% Passing
 
-This repository is a complete, faithful Rust port of upstream `java-diff-utils`. All algorithms, patch operations, unified diff readers/writers, and presentation-layer diff row generators match the Java reference behavior and pass the complete test suite (168 passed, 1 ignored upstream matching Java).
+This repository is a complete, faithful Rust port of upstream `java-diff-utils`. All algorithms, patch operations, unified diff readers/writers, and presentation-layer diff row generators match the Java reference behavior and pass the complete test suite (169 / 169 tests passed, 0 failed, 0 ignored).
 
 ### Test Results Summary
 
@@ -20,10 +20,10 @@ This repository is a complete, faithful Rust port of upstream `java-diff-utils`.
 | `patch.rs` | 8 | 0 | 0 | 8 | **PASSED** — Patch application, chunk verification, and delta processing pass. |
 | `example.rs` | 4 | 0 | 0 | 4 | **PASSED** — End-to-end example fixtures pass cleanly. |
 | `generate_unified_diff_test.rs` | 11 | 0 | 0 | 11 | **PASSED** — Unified diff generation across various delta configurations. |
-| `unifieddiff.rs` | 41 | 0 | 1 | 42 | **PASSED** — Reader/writer verified across all issue fixtures; 1 test ignored upstream matching Java (`test_patch_with_no_deltas`). |
+| `unifieddiff.rs` | 42 | 0 | 0 | 42 | **PASSED** — Reader/writer verified across all issue fixtures, including round-trip empty-delta patches (`test_patch_with_no_deltas`). |
 | `integration_tests.rs` | 36 | 0 | 0 | 36 | **PASSED** — Fuzzy patch exception semantics and Unicode grapheme cluster wrapping safety verified. |
 | `text.rs` | 52 | 0 | 0 | 52 | **PASSED** — `DiffRowGenerator` tag placement, delimiter preservation, and inline diff merging match Java reference. |
-| **Total** | **168** | **0** | **1** | **169** | **168 / 168 Active Tests Passing (100%)** |
+| **Total** | **169** | **0** | **0** | **169** | **169 / 169 Tests Passing (100%)** |
 
 ---
 
