@@ -280,7 +280,8 @@ impl<T> Patch<T> {
 
             if let Some(patch_position) = find_position_fuzzy(&mut ctx, delta)? {
                 let old_len = ctx.result.len();
-                delta.apply_fuzzy_to_at(ctx.result, ctx.current_fuzz, patch_position)?;
+                let fuzz = if delta.delta_type() == DeltaType::Insert { 0 } else { ctx.current_fuzz };
+                delta.apply_fuzzy_to_at(ctx.result, fuzz, patch_position)?;
                 let new_len = ctx.result.len();
 
                 let found_slop = patch_position as isize - default_pos;

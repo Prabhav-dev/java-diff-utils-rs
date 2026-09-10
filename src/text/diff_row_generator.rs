@@ -1,5 +1,4 @@
 //! Generates `DiffRow` instances for side-by-side or inline text views.
-use crate::algorithm::myers::myers_linear::compute_diff;
 use crate::patch::chunk::Chunk;
 use crate::patch::delta::Delta;
 use crate::patch::delta_type::DeltaType;
@@ -76,24 +75,18 @@ pub fn whitespace_equalities_merger() -> InlineDeltaMergerFn {
 
 /// Helper function to split a string while preserving matched delimiters.
 pub fn split_string_preserve_delimiter(str_input: &str, pattern: &Regex) -> Vec<String> {
-    let matches: Vec<_> = pattern.find_iter(str_input).collect();
-    let has_trailing_delimiter = matches.last().map(|m| m.end() == str_input.len()).unwrap_or(false);
     let mut list = Vec::new();
     let mut pos = 0;
 
-    for (idx, mat) in matches.iter().enumerate() {
+    for mat in pattern.find_iter(str_input) {
         if pos < mat.start() {
             list.push(str_input[pos..mat.start()].to_string());
         }
-        if !has_trailing_delimiter || idx + 1 < matches.len() {
-            list.push(mat.as_str().to_string());
-        }
+        list.push(mat.as_str().to_string());
         pos = mat.end();
     }
 
-    if has_trailing_delimiter {
-        list.push(String::new());
-    } else if pos < str_input.len() {
+    if pos < str_input.len() {
         list.push(str_input[pos..].to_string());
     }
 
@@ -190,21 +183,25 @@ impl DiffRowGenerator {
         split_string_preserve_delimiter(str_input, pattern)
     }
 
+    /// Returns whether whitespace differences are ignored.
+    pub fn ignore_white_spaces(&self) -> bool {
+        self.ignore_white_spaces
+    }
+
     /// Generates `DiffRow` items comparing two string sequences.
     pub fn generate_diff_rows(
         &self,
         original: &[String],
         revised: &[String],
     ) -> Vec<DiffRow> {
-        let changes = if self.ignore_white_spaces {
-            let orig_norm: Vec<String> = original.iter().map(|s| adjust_whitespace(s)).collect();
-            let rev_norm: Vec<String> = revised.iter().map(|s| adjust_whitespace(s)).collect();
-            compute_diff(&orig_norm, &rev_norm)
-        } else {
-            compute_diff(original, revised)
-        };
-
-        let mut patch = Patch::generate(original, revised, &changes, false);
+        let mut patch = crate::diff_utils::DiffUtils::diff_with_equalizer(
+            original,
+            revised,
+            Some({
+                let eq = self.equalizer.clone();
+                move |a: &String, b: &String| eq(a, b)
+            }),
+        );
         self.generate_diff_rows_from_patch(original, &mut patch)
     }
 
@@ -325,7 +322,7 @@ impl DiffRowGenerator {
             }
         }
 
-        orig.last() + 1
+        orig.position() + orig.len()
     }
 
     fn decompress_deltas_internal(&self, delta: &Delta<String>) -> Vec<Delta<String>> {
@@ -335,14 +332,16 @@ impl DiffRowGenerator {
             let orig = delta.source();
             let rev = delta.target();
 
-            let orig_sub = orig.lines()[..min_size].to_vec();
-            let rev_sub = rev.lines()[..min_size].to_vec();
+            if min_size > 0 {
+                let orig_sub = orig.lines()[..min_size].to_vec();
+                let rev_sub = rev.lines()[..min_size].to_vec();
 
-            deltas.push(Delta::new(
-                DeltaType::Change,
-                Chunk::new(orig.position(), orig_sub, None),
-                Chunk::new(rev.position(), rev_sub, None),
-            ));
+                deltas.push(Delta::new(
+                    DeltaType::Change,
+                    Chunk::new(orig.position(), orig_sub, None),
+                    Chunk::new(rev.position(), rev_sub, None),
+                ));
+            }
 
             if orig.lines().len() < rev.lines().len() {
                 deltas.push(Delta::new(
@@ -354,7 +353,7 @@ impl DiffRowGenerator {
                         None,
                     ),
                 ));
-            } else {
+            } else if orig.lines().len() > rev.lines().len() {
                 deltas.push(Delta::new(
                     DeltaType::Delete,
                     Chunk::new(
@@ -437,15 +436,14 @@ impl DiffRowGenerator {
         let mut orig_list = (self.inline_diff_splitter)(&joined_orig);
         let mut rev_list = (self.inline_diff_splitter)(&joined_rev);
 
-        let changes = if self.ignore_white_spaces {
-            let orig_norm: Vec<String> = orig_list.iter().map(|s| adjust_whitespace(s)).collect();
-            let rev_norm: Vec<String> = rev_list.iter().map(|s| adjust_whitespace(s)).collect();
-            compute_diff(&orig_norm, &rev_norm)
-        } else {
-            compute_diff_with_equalizer(&orig_list, &rev_list, &self.equalizer)
-        };
-
-        let patch = Patch::generate(&orig_list, &rev_list, &changes, false);
+        let patch = crate::diff_utils::DiffUtils::diff_with_equalizer(
+            &orig_list,
+            &rev_list,
+            Some({
+                let eq = self.equalizer.clone();
+                move |a: &String, b: &String| eq(a, b)
+            }),
+        );
         let original_inline_deltas = patch.deltas().to_vec();
 
         let inline_merge_info = InlineDeltaMergeInfo::new(
@@ -457,8 +455,8 @@ impl DiffRowGenerator {
         inline_deltas.reverse();
 
         for inline_delta in &inline_deltas {
-            let inline_orig: &Chunk<String> = inline_delta.source();
-            let inline_rev: &Chunk<String> = inline_delta.target();
+            let inline_orig = inline_delta.source();
+            let inline_rev = inline_delta.target();
 
             match inline_delta.delta_type() {
                 DeltaType::Delete => {
@@ -475,24 +473,23 @@ impl DiffRowGenerator {
                 }
                 DeltaType::Insert => {
                     if self.merge_original_revised {
-                        let pos = inline_orig.position().min(orig_list.len());
-                        let insert_text = rev_list
-                            [inline_rev.position()..inline_rev.position() + inline_rev.len()]
-                            .iter()
-                            .map(|s| s.to_string())
-                            .collect::<Vec<_>>()
-                            .join("");
-                        let wrapped = format!(
-                            "{}{}{}",
-                            (self.new_tag)(Tag::Insert, true),
-                            insert_text,
-                            (self.new_tag)(Tag::Insert, false)
+                        let mut temp_rev = rev_list.clone();
+                        let len_before = temp_rev.len();
+                        wrap_in_tag(
+                            &mut temp_rev,
+                            inline_rev.position(),
+                            inline_rev.position() + inline_rev.len(),
+                            Tag::Insert,
+                            &self.new_tag,
+                            self.process_diffs.as_ref(),
+                            false,
                         );
-                        let mut merged = Vec::with_capacity(orig_list.len() + 1);
-                        merged.extend_from_slice(&orig_list[..pos]);
-                        merged.push(wrapped);
-                        merged.extend_from_slice(&orig_list[pos..]);
-                        orig_list = merged;
+                        let tags_added = temp_rev.len() - len_before;
+                        let insert_start = inline_rev.position().min(temp_rev.len());
+                        let insert_end = (inline_rev.position() + inline_rev.len() + tags_added).min(temp_rev.len());
+                        let sub = temp_rev[insert_start..insert_end].to_vec();
+                        let orig_pos = inline_orig.position().min(orig_list.len());
+                        orig_list.splice(orig_pos..orig_pos, sub);
                     } else {
                         wrap_in_tag(
                             &mut rev_list,
@@ -507,32 +504,37 @@ impl DiffRowGenerator {
                 }
                 DeltaType::Change => {
                     if self.merge_original_revised {
-                        let old_start = inline_orig.position();
-                        let old_end = old_start + inline_orig.len();
-                        let new_start = inline_rev.position();
-                        let new_end = new_start + inline_rev.len();
-
-                        let old_text = orig_list[old_start..old_end].concat();
-                        let new_text = rev_list[new_start..new_end].concat();
-                        let old_wrapped = format!(
-                            "{}{}{}",
-                            (self.old_tag)(Tag::Change, true),
-                            old_text,
-                            (self.old_tag)(Tag::Change, false)
+                        let mut temp_rev = rev_list.clone();
+                        let rev_len_before = temp_rev.len();
+                        wrap_in_tag(
+                            &mut temp_rev,
+                            inline_rev.position(),
+                            inline_rev.position() + inline_rev.len(),
+                            Tag::Change,
+                            &self.new_tag,
+                            self.process_diffs.as_ref(),
+                            false,
                         );
-                        let new_wrapped = format!(
-                            "{}{}{}",
-                            (self.new_tag)(Tag::Change, true),
-                            new_text,
-                            (self.new_tag)(Tag::Change, false)
-                        );
+                        let rev_tags_added = temp_rev.len() - rev_len_before;
 
-                        let mut merged = Vec::with_capacity(orig_list.len() - inline_orig.len() + 2);
-                        merged.extend_from_slice(&orig_list[..old_start]);
-                        merged.push(old_wrapped);
-                        merged.push(new_wrapped);
-                        merged.extend_from_slice(&orig_list[old_end..]);
-                        orig_list = merged;
+                        let orig_len_before = orig_list.len();
+                        wrap_in_tag(
+                            &mut orig_list,
+                            inline_orig.position(),
+                            inline_orig.position() + inline_orig.len(),
+                            Tag::Change,
+                            &self.old_tag,
+                            self.process_diffs.as_ref(),
+                            self.replace_original_linefeed_in_changes_with_spaces
+                                && self.merge_original_revised,
+                        );
+                        let orig_tags_added = orig_list.len() - orig_len_before;
+
+                        let insert_start = inline_rev.position().min(temp_rev.len());
+                        let insert_end = (inline_rev.position() + inline_rev.len() + rev_tags_added).min(temp_rev.len());
+                        let sub = temp_rev[insert_start..insert_end].to_vec();
+                        let orig_pos = (inline_orig.position() + inline_orig.len() + orig_tags_added).min(orig_list.len());
+                        orig_list.splice(orig_pos..orig_pos, sub);
                     } else {
                         wrap_in_tag(
                             &mut rev_list,
@@ -562,8 +564,15 @@ impl DiffRowGenerator {
         let orig_result: String = orig_list.concat();
         let rev_result: String = rev_list.concat();
 
-        let original_split: Vec<String> = orig_result.split('\n').map(|s| s.to_string()).collect();
-        let revised_split: Vec<String> = rev_result.split('\n').map(|s| s.to_string()).collect();
+        let mut original_split: Vec<String> = orig_result.split('\n').map(|s| s.to_string()).collect();
+        let mut revised_split: Vec<String> = rev_result.split('\n').map(|s| s.to_string()).collect();
+
+        while original_split.len() > orig.len() && original_split.last().map_or(false, |s| s.is_empty()) {
+            original_split.pop();
+        }
+        while revised_split.len() > rev.len() && revised_split.last().map_or(false, |s| s.is_empty()) {
+            revised_split.pop();
+        }
 
         let max_lines = original_split.len().max(revised_split.len());
         let mut diff_rows = Vec::new();
@@ -592,19 +601,6 @@ impl DiffRowGenerator {
         } else {
             text.to_string()
         }
-    }
-}
-
-/// Helper function to run Myers diff using a custom equalizer closure.
-fn compute_diff_with_equalizer(
-    orig: &[String],
-    rev: &[String],
-    equalizer: &EqualizerFn,
-) -> Vec<crate::algorithm::change::Change> {
-    if orig.iter().zip(rev.iter()).all(|(a, b)| equalizer(a, b)) && orig.len() == rev.len() {
-        Vec::new()
-    } else {
-        compute_diff(orig, rev)
     }
 }
 

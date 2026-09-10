@@ -86,7 +86,6 @@ impl UnifiedDiffWriter {
                                 &original_lines,
                                 &deltas,
                                 context_size,
-                                false,
                             );
                             deltas.clear();
                             deltas.push(next_delta);
@@ -100,7 +99,6 @@ impl UnifiedDiffWriter {
                     &original_lines,
                     &deltas,
                     context_size,
-                    patch_deltas.len() == 1 && file.from_file().is_none(),
                 );
             }
         }
@@ -118,7 +116,6 @@ impl UnifiedDiffWriter {
         orig_lines: &[String],
         deltas: &[&Delta<String>],
         context_size: usize,
-        new_file: bool,
     ) where
         C: FnMut(&str),
     {
@@ -131,24 +128,6 @@ impl UnifiedDiffWriter {
         let mut rev_total = 0usize;
 
         let cur_delta = deltas[0];
-
-        let orig_start = if new_file {
-            0
-        } else {
-            let pos_plus_one = cur_delta.source().position() + 1;
-            if pos_plus_one > context_size {
-                pos_plus_one - context_size
-            } else {
-                1
-            }
-        };
-
-        let rev_pos_plus_one = cur_delta.target().position() + 1;
-        let rev_start = if rev_pos_plus_one > context_size {
-            rev_pos_plus_one - context_size
-        } else {
-            1
-        };
 
         let context_start = cur_delta.source().position().saturating_sub(context_size);
 
@@ -188,6 +167,28 @@ impl UnifiedDiffWriter {
             orig_total += 1;
             rev_total += 1;
         }
+
+        let orig_start = if orig_total == 0 {
+            0
+        } else {
+            let pos_plus_one = cur_delta.source().position() + 1;
+            if pos_plus_one > context_size {
+                pos_plus_one - context_size
+            } else {
+                1
+            }
+        };
+
+        let rev_start = if rev_total == 0 {
+            0
+        } else {
+            let rev_pos_plus_one = cur_delta.target().position() + 1;
+            if rev_pos_plus_one > context_size {
+                rev_pos_plus_one - context_size
+            } else {
+                1
+            }
+        };
 
         writer(&format!(
             "@@ -{},{} +{},{} @@",

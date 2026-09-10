@@ -156,7 +156,7 @@ impl UnifiedDiffUtils {
                     deltas.push(next_delta);
                 } else {
                     let cur_block =
-                        Self::process_deltas(original_lines, &deltas, context_size, false);
+                        Self::process_deltas(original_lines, &deltas, context_size);
                     ret.extend(cur_block);
                     deltas.clear();
                     deltas.push(next_delta);
@@ -165,9 +165,8 @@ impl UnifiedDiffUtils {
             }
         }
 
-        let is_new_file = patch_deltas.len() == 1 && original_file_name.is_none();
         let cur_block =
-            Self::process_deltas(original_lines, &deltas, context_size, is_new_file);
+            Self::process_deltas(original_lines, &deltas, context_size);
         ret.extend(cur_block);
 
         ret
@@ -177,31 +176,12 @@ impl UnifiedDiffUtils {
         orig_lines: &[String],
         deltas: &[&Delta<String>],
         context_size: usize,
-        new_file: bool,
     ) -> Vec<String> {
         let mut buffer = Vec::new();
         let mut orig_total = 0usize;
         let mut rev_total = 0usize;
 
         let cur_delta = deltas[0];
-
-        let orig_start = if new_file {
-            0
-        } else {
-            let pos_plus_one = cur_delta.source().position() + 1;
-            if pos_plus_one > context_size {
-                pos_plus_one - context_size
-            } else {
-                1
-            }
-        };
-
-        let rev_pos_plus_one = cur_delta.target().position() + 1;
-        let rev_start = if rev_pos_plus_one > context_size {
-            rev_pos_plus_one - context_size
-        } else {
-            1
-        };
 
         let context_start = cur_delta.source().position().saturating_sub(context_size);
 
@@ -241,6 +221,28 @@ impl UnifiedDiffUtils {
             orig_total += 1;
             rev_total += 1;
         }
+
+        let orig_start = if orig_total == 0 {
+            0
+        } else {
+            let pos_plus_one = cur_delta.source().position() + 1;
+            if pos_plus_one > context_size {
+                pos_plus_one - context_size
+            } else {
+                1
+            }
+        };
+
+        let rev_start = if rev_total == 0 {
+            0
+        } else {
+            let rev_pos_plus_one = cur_delta.target().position() + 1;
+            if rev_pos_plus_one > context_size {
+                rev_pos_plus_one - context_size
+            } else {
+                1
+            }
+        };
 
         let header = format!(
             "@@ -{},{} +{},{} @@",

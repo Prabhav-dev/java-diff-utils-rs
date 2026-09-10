@@ -11,6 +11,8 @@ pub fn normalize(str_input: &str) -> String {
     html_entities(&str_input.replace('\t', "    "))
 }
 
+use unicode_segmentation::UnicodeSegmentation;
+
 /// Wraps text to column_width, joining wrapped segments with `<br/>` tags.
 /// A column_width of 0 leaves the line untouched (no wrapping is possible).
 pub fn wrap_text(line: &str, column_width: usize) -> String {
@@ -18,24 +20,17 @@ pub fn wrap_text(line: &str, column_width: usize) -> String {
         return line.to_string();
     }
 
-    // Width is measured in UTF-16 code units (matching Java's `String.length()`),
-    // but a break is never inserted in the middle of a surrogate pair.
-    let utf16_len = line.encode_utf16().count();
-    if utf16_len <= column_width {
+    let graphemes: Vec<&str> = line.graphemes(true).collect();
+    if graphemes.len() <= column_width {
         return line.to_string();
     }
 
     let mut result = String::new();
-    let mut current_len = 0;
-
-    for ch in line.chars() {
-        let w = ch.len_utf16();
-        if current_len >= column_width {
+    for (i, &g) in graphemes.iter().enumerate() {
+        if i > 0 && i % column_width == 0 {
             result.push_str("<br/>");
-            current_len = 0;
         }
-        result.push(ch);
-        current_len += w;
+        result.push_str(g);
     }
 
     result

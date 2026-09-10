@@ -204,6 +204,11 @@ impl<T> Delta<T> {
                 Ok(())
             }
             DeltaType::Insert => {
+                if _fuzz > 0 {
+                    return Err(PatchError::UnsupportedOperation(
+                        "Fuzzy patching is not supported for InsertDelta".to_string(),
+                    ));
+                }
                 let insert_pos = position.min(target.len());
                 let lines = self.target.lines();
                 target.splice(insert_pos..insert_pos, lines.iter().cloned());

@@ -270,7 +270,7 @@ fn test_split_string3() {
     );
     println!("{:?}", list);
     assert_eq!(list.len(), 4);
-    assert_eq!(format!("{:?}", list), "[\"test\", \",\", \"test2\", \"\"]");
+    assert_eq!(format!("{:?}", list), "[\"test\", \",\", \"test2\", \",\"]");
 }
 
 #[test]
