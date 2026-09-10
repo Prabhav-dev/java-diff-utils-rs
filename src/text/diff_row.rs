@@ -3,12 +3,23 @@
 use std::fmt;
 
 /// Describes the operation tag associated with a diff row.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Tag {
     Insert,
     Delete,
     Change,
     Equal,
+}
+
+impl fmt::Debug for Tag {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Tag::Insert => write!(f, "Insert"),
+            Tag::Delete => write!(f, "Delete"),
+            Tag::Change => write!(f, "Change"),
+            Tag::Equal => write!(f, "Equal"),
+        }
+    }
 }
 
 impl fmt::Display for Tag {
@@ -24,11 +35,17 @@ impl fmt::Display for Tag {
 
 /// Describes a diff row in the form `[tag, old_line, new_line]` 
 /// for showing differences between two texts side-by-side.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct DiffRow {
     tag: Tag,
     old_line: String,
     new_line: String,
+}
+
+impl fmt::Debug for DiffRow {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "[{},{},{}]", self.tag, self.old_line, self.new_line)
+    }
 }
 
 impl DiffRow {
