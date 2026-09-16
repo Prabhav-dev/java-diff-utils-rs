@@ -1,5 +1,5 @@
-use my_diff_crate::diff_utils::DiffUtils;
-use my_diff_crate::patch::Chunk;
+use java_diff_utils_rs::diff_utils::DiffUtils;
+use java_diff_utils_rs::patch::Chunk;
 
 #[test]
 fn test_diff_insert() {
@@ -78,12 +78,8 @@ fn test_delta_type_names() {
     let target = vec!["The", "fox", "is", "down"];
 
     let patch = DiffUtils::diff(&source, &target, None);
-    
-    let types: Vec<_> = patch
-        .deltas()
-        .iter()
-        .map(|d| d.delta_type())
-        .collect();
+
+    let types: Vec<_> = patch.deltas().iter().map(|d| d.delta_type()).collect();
 
     assert!(!types.is_empty());
 

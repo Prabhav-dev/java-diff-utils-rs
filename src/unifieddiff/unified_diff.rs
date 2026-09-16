@@ -56,14 +56,13 @@ impl UnifiedDiff {
     where
         F: Fn(&str) -> bool,
     {
-        let target_file = self.files.iter_mut().find(|diff| {
-            diff.from_file()
-                .map(|file_path| find_file(file_path))
-                .unwrap_or(false)
-        });
+        let target_file = self
+            .files
+            .iter_mut()
+            .find(|diff| diff.from_file().map(&find_file).unwrap_or(false));
 
         if let Some(file) = target_file {
-             Ok(file.patch_mut().apply_to(original_lines)?)
+            Ok(file.patch_mut().apply_to(original_lines)?)
         } else {
             Ok(original_lines.to_vec())
         }

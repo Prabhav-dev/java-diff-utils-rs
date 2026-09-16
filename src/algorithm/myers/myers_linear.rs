@@ -140,7 +140,7 @@ where
         max_steps,
     );
 
-    if let Some(l) = listener.as_deref_mut() {
+    if let Some(l) = listener {
         l.diff_end();
     }
 
@@ -204,7 +204,8 @@ fn partition_and_build<T, F, L>(
     L: DiffAlgorithmListener + ?Sized,
 {
     if let Some(l) = listener.as_deref_mut() {
-        let step = (region.src_end - region.src_start) / 2 + (region.tgt_end - region.tgt_start) / 2;
+        let step =
+            (region.src_end - region.src_start) / 2 + (region.tgt_end - region.tgt_start) / 2;
         l.diff_step(step, max_steps);
     }
 
@@ -271,7 +272,7 @@ fn partition_and_build<T, F, L>(
             },
             ws,
             script,
-            listener.as_deref_mut(),
+            listener,
             max_steps,
         );
     }
@@ -296,7 +297,11 @@ where
 
     let delta = src_len as isize - tgt_len as isize;
     let total_len = tgt_len + src_len;
-    let offset = if total_len % 2 == 0 { total_len } else { total_len + 1 } / 2;
+    let offset = if total_len.is_multiple_of(2) {
+        total_len
+    } else {
+        total_len + 1
+    } / 2;
 
     ws.v_down[1 + offset] = region.src_start;
     ws.v_up[1 + offset] = region.src_end + 1;
@@ -315,7 +320,8 @@ where
             }
 
             let mut x = ws.v_down[idx];
-            let mut y = (x as isize - region.src_start as isize + region.tgt_start as isize - k) as usize;
+            let mut y =
+                (x as isize - region.src_start as isize + region.tgt_start as isize - k) as usize;
 
             while x < region.src_end && y < region.tgt_end && equalizer(&source[x], &target[y]) {
                 x += 1;
@@ -325,7 +331,7 @@ where
 
             if delta % 2 != 0 && (delta - d_step) <= k && k <= (delta + d_step) {
                 let up_idx = (idx as isize - delta) as usize;
-                if ws.v_up.get(up_idx).map_or(false, |&v| v <= ws.v_down[idx]) {
+                if ws.v_up.get(up_idx).is_some_and(|&v| v <= ws.v_down[idx]) {
                     return Some(expand_snake(
                         source,
                         target,
@@ -352,7 +358,8 @@ where
             }
 
             let mut x = ws.v_up[idx].saturating_sub(1);
-            let mut y = (x as isize - region.src_start as isize + region.tgt_start as isize - k) as usize;
+            let mut y =
+                (x as isize - region.src_start as isize + region.tgt_start as isize - k) as usize;
 
             while x >= region.src_start
                 && y >= region.tgt_start
@@ -370,7 +377,7 @@ where
 
             if delta % 2 == 0 && -d_step <= k && k <= d_step {
                 let down_idx = (idx as isize + delta) as usize;
-                if ws.v_down.get(down_idx).map_or(false, |&v| ws.v_up[idx] <= v) {
+                if ws.v_down.get(down_idx).is_some_and(|&v| ws.v_up[idx] <= v) {
                     return Some(expand_snake(
                         source,
                         target,

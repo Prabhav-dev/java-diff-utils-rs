@@ -1,5 +1,5 @@
-use std::fmt;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 use crate::algorithm::change::Change;
 
@@ -217,7 +217,7 @@ impl<T> Patch<T> {
             if let Some(source) = self.fuzzy_source.as_deref() {
                 let source_position = delta.source().position();
                 let aligned_position = source_position as isize + alignment_offset;
-                if aligned_position >= 0 && delta.source().len() > 0 {
+                if aligned_position >= 0 && !delta.source().is_empty() {
                     let aligned_position = aligned_position as usize;
                     let source_fuzz = (0..=delta.source().len())
                         .find(|fuzz| {
@@ -280,7 +280,11 @@ impl<T> Patch<T> {
 
             if let Some(patch_position) = find_position_fuzzy(&mut ctx, delta)? {
                 let old_len = ctx.result.len();
-                let fuzz = if delta.delta_type() == DeltaType::Insert { 0 } else { ctx.current_fuzz };
+                let fuzz = if delta.delta_type() == DeltaType::Insert {
+                    0
+                } else {
+                    ctx.current_fuzz
+                };
                 delta.apply_fuzzy_to_at(ctx.result, fuzz, patch_position)?;
                 let new_len = ctx.result.len();
 
@@ -293,7 +297,7 @@ impl<T> Patch<T> {
                 // it is a Delete delta, meaning its footprint in the resulting array is 0.
                 let src_len = delta.source().len();
                 let is_delete = src_len > 0 && length_delta == -(src_len as isize);
-                
+
                 let effective_source_len = if is_delete { 0 } else { src_len };
 
                 ctx.last_patch_end = patch_position as isize + effective_source_len as isize;
@@ -315,12 +319,7 @@ impl<T> Patch<T> {
     }
 
     /// Constructs a `Patch` from sequences and raw algorithm `Change` records.
-    pub fn generate(
-        original: &[T],
-        revised: &[T],
-        changes: &[Change],
-        include_equals: bool,
-    ) -> Self
+    pub fn generate(original: &[T], revised: &[T], changes: &[Change], include_equals: bool) -> Self
     where
         T: Clone,
     {
@@ -464,13 +463,14 @@ fn find_position_with_fuzz_and_more_delta<T: PartialEq>(
 
     if !ctx.after_out_range {
         let src_len = delta.source().len();
-        let effective_len = if src_len > 2 * fuzz { src_len - 2 * fuzz } else { 0 };
-        
+        let effective_len = src_len.saturating_sub(2 * fuzz);
+
         // FIX: Prevent usize wrap-around from bypassing the loop termination guard
-        let begin_at = ctx.default_position
+        let begin_at = ctx
+            .default_position
             .saturating_add(more_delta)
             .saturating_add(effective_len);
-            
+
         if begin_at > ctx.result.len() {
             ctx.after_out_range = true;
         }

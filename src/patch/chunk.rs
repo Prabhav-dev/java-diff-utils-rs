@@ -1,5 +1,5 @@
-use std::fmt;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 use super::error::PatchError;
 use super::verify_chunk::VerifyChunk;

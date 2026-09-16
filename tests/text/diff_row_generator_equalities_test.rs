@@ -1,15 +1,11 @@
-use my_diff_crate::{DiffRowGenerator, Tag};
+use java_diff_utils_rs::{DiffRowGenerator, Tag};
 
 #[test]
 fn test_default_equality_processing_leaves_text_unchanged() {
-    let generator = DiffRowGenerator::create()
-        .show_inline_diffs(false)
-        .build();
+    let generator = DiffRowGenerator::create().show_inline_diffs(false).build();
 
-    let rows = generator.generate_diff_rows(
-        &["hello world".to_string()],
-        &["hello world".to_string()],
-    );
+    let rows =
+        generator.generate_diff_rows(&["hello world".to_string()], &["hello world".to_string()]);
 
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].old_line(), "hello world");
@@ -72,10 +68,8 @@ fn test_equalities_processed_but_inline_diff_still_present() {
         .process_equalities(|s| format!("({})", s))
         .build();
 
-    let rows = generator.generate_diff_rows(
-        &["hello world".to_string()],
-        &["hello there".to_string()],
-    );
+    let rows =
+        generator.generate_diff_rows(&["hello world".to_string()], &["hello there".to_string()]);
 
     let row = &rows[0];
 

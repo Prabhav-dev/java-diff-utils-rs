@@ -1,7 +1,7 @@
 use std::fs;
 use std::io;
 
-use my_diff_crate::UnifiedDiffUtils;
+use java_diff_utils_rs::UnifiedDiffUtils;
 
 fn file_to_lines(filename: &str) -> io::Result<Vec<String>> {
     let content = fs::read_to_string(filename)?;
@@ -10,10 +10,10 @@ fn file_to_lines(filename: &str) -> io::Result<Vec<String>> {
 
 #[test]
 fn test_generate_original_and_diff() {
-    let orig_lines = file_to_lines("tests/fixtures/original.txt")
-        .expect("Failed to read original.txt");
-    let rev_lines = file_to_lines("tests/fixtures/revised.txt")
-        .expect("Failed to read revised.txt");
+    let orig_lines =
+        file_to_lines("tests/fixtures/original.txt").expect("Failed to read original.txt");
+    let rev_lines =
+        file_to_lines("tests/fixtures/revised.txt").expect("Failed to read revised.txt");
 
     // Corrected parameter order: (lines1, lines2, name1, name2)
     let original_and_diff = UnifiedDiffUtils::generate_original_and_diff(

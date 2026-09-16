@@ -2,12 +2,9 @@
 
 //! Transpiled Unit Tests for `com.github.difflib.algorithm.myers.WithMyersDiffWithLinearSpacePatchTest`
 
-use my_diff_crate::algorithm::myers::myers_linear::compute_diff as compute_diff_linear;
-use my_diff_crate::patch::conflict_formatter::conflict_produces_merge_conflict;
-use my_diff_crate::patch::{
-    error::PatchFailedException,
-    Patch,
-};
+use java_diff_utils_rs::algorithm::myers::myers_linear::compute_diff as compute_diff_linear;
+use java_diff_utils_rs::patch::conflict_formatter::conflict_produces_merge_conflict;
+use java_diff_utils_rs::patch::{error::PatchFailedException, Patch};
 
 #[test]
 fn test_patch_insert() -> Result<(), PatchFailedException> {
@@ -77,7 +74,12 @@ fn test_fuzzy_apply() {
         .map(String::from)
         .collect();
 
-    let patch = Patch::generate(&original, &revised, &compute_diff_linear(&original, &revised), false);
+    let patch = Patch::generate(
+        &original,
+        &revised,
+        &compute_diff_linear(&original, &revised),
+        false,
+    );
 
     for (pair_idx, pair) in FUZZY_APPLY_TEST_PAIRS.iter().enumerate() {
         let prefix = int_range(6);
@@ -124,7 +126,10 @@ fn test_fuzzy_apply() {
                                 let act = current.get(i).map(|s| s.as_str()).unwrap_or("<NONE>");
                                 let exp = expected.get(i).map(|s| s.as_str()).unwrap_or("<NONE>");
                                 let mark = if act == exp { " " } else { "!" };
-                                println!("{:>2} {} | Actual: {:<10} | Expected: {:<10}", i, mark, act, exp);
+                                println!(
+                                    "{:>2} {} | Actual: {:<10} | Expected: {:<10}",
+                                    i, mark, act, exp
+                                );
                             }
 
                             panic!(

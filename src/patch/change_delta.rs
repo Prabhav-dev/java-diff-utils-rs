@@ -118,10 +118,7 @@ impl<T> ChangeDelta<T> {
 
         let end = (position + self.source().len()).min(target.len());
 
-        target.splice(
-            position..end,
-            self.target().lines().iter().cloned(),
-        );
+        target.splice(position..end, self.target().lines().iter().cloned());
 
         Ok(())
     }

@@ -1,8 +1,8 @@
-use std::fs;
 use std::error::Error;
+use std::fs;
 
-use my_diff_crate::diff_utils::DiffUtils;
-use my_diff_crate::UnifiedDiffUtils;
+use java_diff_utils_rs::diff_utils::DiffUtils;
+use java_diff_utils_rs::UnifiedDiffUtils;
 
 const ORIGINAL_PATH: &str = "tests/fixtures/issue10_base.txt";
 const PATCH_PATH: &str = "tests/fixtures/issue10_patch.txt";

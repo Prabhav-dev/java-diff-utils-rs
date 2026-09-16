@@ -1,6 +1,6 @@
-use my_diff_crate::algorithm::myers::myers_linear::MyersDiffWithLinearSpace;
-use my_diff_crate::diff_utils::DiffUtils;
-use my_diff_crate::patch::conflict_produces_merge_conflict;
+use java_diff_utils_rs::algorithm::myers::myers_linear::MyersDiffWithLinearSpace;
+use java_diff_utils_rs::diff_utils::DiffUtils;
+use java_diff_utils_rs::patch::conflict_produces_merge_conflict;
 
 #[test]
 fn test_patch_change_with_exception_processor() {
@@ -17,14 +17,15 @@ fn test_patch_change_with_exception_processor() {
         "ddd".to_string(),
     ];
 
-let algo = MyersDiffWithLinearSpace::new();
-    let patch = DiffUtils::diff_with_algorithm(&change_test_from, &change_test_to, &algo, None, false)
-    .with_conflict_output(conflict_produces_merge_conflict);
+    let algo = MyersDiffWithLinearSpace::new();
+    let patch =
+        DiffUtils::diff_with_algorithm(&change_test_from, &change_test_to, &algo, None, false)
+            .with_conflict_output(conflict_produces_merge_conflict);
 
     change_test_from[2] = "CDC".to_string();
 
-    let data = DiffUtils::patch(&change_test_from, &patch)
-        .expect("Patch with conflict output failed");
+    let data =
+        DiffUtils::patch(&change_test_from, &patch).expect("Patch with conflict output failed");
 
     assert_eq!(data.len(), 11);
 

@@ -1,12 +1,12 @@
 use std::fs;
 use std::path::Path;
 
-use my_diff_crate::algorithm::myers::MyersDiffWithLinearSpace;
-use my_diff_crate::diff_utils::DiffUtils;
-use my_diff_crate::text::delta_merge::inline_delta_merge_info::InlineDeltaMergeInfo;
-use my_diff_crate::text::delta_merge::delta_merge_utils::DeltaMergeUtils;
-use my_diff_crate::text::string_utils::StringUtils;
-use my_diff_crate::{DiffRow, DiffRowGenerator, Tag};
+use java_diff_utils_rs::algorithm::myers::MyersDiffWithLinearSpace;
+use java_diff_utils_rs::diff_utils::DiffUtils;
+use java_diff_utils_rs::text::delta_merge::delta_merge_utils::DeltaMergeUtils;
+use java_diff_utils_rs::text::delta_merge::inline_delta_merge_info::InlineDeltaMergeInfo;
+use java_diff_utils_rs::text::string_utils::StringUtils;
+use java_diff_utils_rs::{DiffRow, DiffRowGenerator, Tag};
 
 fn split(content: &str) -> Vec<String> {
     content.lines().map(|s| s.to_string()).collect()
@@ -24,10 +24,7 @@ fn assert_inline_diff_result(
     revised: &str,
     expected: &str,
 ) {
-    let rows = generator.generate_diff_rows(
-        &[original.to_string()],
-        &[revised.to_string()],
-    );
+    let rows = generator.generate_diff_rows(&[original.to_string()], &[revised.to_string()]);
     print_rows(&rows);
 
     assert_eq!(rows.len(), 1);
@@ -151,10 +148,7 @@ fn test_generator_with_merge2() {
         .show_inline_diffs(true)
         .merge_original_revised(true)
         .build();
-    let rows = generator.generate_diff_rows(
-        &["Test".to_string()],
-        &["ester".to_string()],
-    );
+    let rows = generator.generate_diff_rows(&["Test".to_string()], &["ester".to_string()]);
     print_rows(&rows);
 
     assert_eq!(rows.len(), 1);
@@ -207,10 +201,7 @@ fn test_generator_with_merge_by_word4() {
         .merge_original_revised(true)
         .inline_diff_by_word(true)
         .build();
-    let rows = generator.generate_diff_rows(
-        &["Test".to_string()],
-        &["ester".to_string()],
-    );
+    let rows = generator.generate_diff_rows(&["Test".to_string()], &["ester".to_string()]);
     print_rows(&rows);
 
     assert_eq!(rows.len(), 1);
@@ -245,7 +236,7 @@ fn test_generator_with_merge_by_word5() {
 fn test_split_string() {
     let list = DiffRowGenerator::split_string_preserve_delimiter(
         "test,test2",
-        &my_diff_crate::text::diff_row_generator::SPLIT_BY_WORD_PATTERN,
+        &java_diff_utils_rs::text::diff_row_generator::SPLIT_BY_WORD_PATTERN,
     );
     assert_eq!(list.len(), 3);
     assert_eq!(format!("{:?}", list), "[\"test\", \",\", \"test2\"]");
@@ -255,18 +246,21 @@ fn test_split_string() {
 fn test_split_string2() {
     let list = DiffRowGenerator::split_string_preserve_delimiter(
         "test , test2",
-        &my_diff_crate::text::diff_row_generator::SPLIT_BY_WORD_PATTERN,
+        &java_diff_utils_rs::text::diff_row_generator::SPLIT_BY_WORD_PATTERN,
     );
     println!("{:?}", list);
     assert_eq!(list.len(), 5);
-    assert_eq!(format!("{:?}", list), "[\"test\", \" \", \",\", \" \", \"test2\"]");
+    assert_eq!(
+        format!("{:?}", list),
+        "[\"test\", \" \", \",\", \" \", \"test2\"]"
+    );
 }
 
 #[test]
 fn test_split_string3() {
     let list = DiffRowGenerator::split_string_preserve_delimiter(
         "test,test2,",
-        &my_diff_crate::text::diff_row_generator::SPLIT_BY_WORD_PATTERN,
+        &java_diff_utils_rs::text::diff_row_generator::SPLIT_BY_WORD_PATTERN,
     );
     println!("{:?}", list);
     assert_eq!(list.len(), 4);
@@ -279,8 +273,20 @@ fn test_generator_example1() {
         .show_inline_diffs(true)
         .merge_original_revised(true)
         .inline_diff_by_word(true)
-        .old_tag(|_tag, opening| if opening { "~".to_string() } else { "~".to_string() })
-        .new_tag(|_tag, opening| if opening { "**".to_string() } else { "**".to_string() })
+        .old_tag(|_tag, opening| {
+            if opening {
+                "~".to_string()
+            } else {
+                "~".to_string()
+            }
+        })
+        .new_tag(|_tag, opening| {
+            if opening {
+                "**".to_string()
+            } else {
+                "**".to_string()
+            }
+        })
         .build();
     let rows = generator.generate_diff_rows(
         &["This is a test senctence.".to_string()],
@@ -301,8 +307,20 @@ fn test_generator_example2() {
     let generator = DiffRowGenerator::create()
         .show_inline_diffs(true)
         .inline_diff_by_word(true)
-        .old_tag(|_tag, opening| if opening { "~".to_string() } else { "~".to_string() })
-        .new_tag(|_tag, opening| if opening { "**".to_string() } else { "**".to_string() })
+        .old_tag(|_tag, opening| {
+            if opening {
+                "~".to_string()
+            } else {
+                "~".to_string()
+            }
+        })
+        .new_tag(|_tag, opening| {
+            if opening {
+                "**".to_string()
+            } else {
+                "**".to_string()
+            }
+        })
         .build();
     let rows = generator.generate_diff_rows(
         &[
@@ -356,8 +374,20 @@ fn test_generator_issue14() {
                 &regex::Regex::new(",").unwrap(),
             )
         })
-        .old_tag(|_tag, opening| if opening { "~".to_string() } else { "~".to_string() })
-        .new_tag(|_tag, opening| if opening { "**".to_string() } else { "**".to_string() })
+        .old_tag(|_tag, opening| {
+            if opening {
+                "~".to_string()
+            } else {
+                "~".to_string()
+            }
+        })
+        .new_tag(|_tag, opening| {
+            if opening {
+                "**".to_string()
+            } else {
+                "**".to_string()
+            }
+        })
         .build();
     let rows = generator.generate_diff_rows(
         &["J. G. Feldstein, Chair".to_string()],
@@ -367,7 +397,10 @@ fn test_generator_issue14() {
     println!("{}", rows[0].old_line());
 
     assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0].old_line(), "~J. G. Feldstein~**T. P. Pastor**, Chair");
+    assert_eq!(
+        rows[0].old_line(),
+        "~J. G. Feldstein~**T. P. Pastor**, Chair"
+    );
 }
 
 #[test]
@@ -375,12 +408,26 @@ fn test_generator_issue15() {
     let generator = DiffRowGenerator::create()
         .show_inline_diffs(true)
         .inline_diff_by_word(true)
-        .old_tag(|_tag, opening| if opening { "~".to_string() } else { "~".to_string() })
-        .new_tag(|_tag, opening| if opening { "**".to_string() } else { "**".to_string() })
+        .old_tag(|_tag, opening| {
+            if opening {
+                "~".to_string()
+            } else {
+                "~".to_string()
+            }
+        })
+        .new_tag(|_tag, opening| {
+            if opening {
+                "**".to_string()
+            } else {
+                "**".to_string()
+            }
+        })
         .build();
 
-    let list_one = split(&fs::read_to_string("target/test-classes/mocks/issue15_1.txt").unwrap_or_default());
-    let list_two = split(&fs::read_to_string("target/test-classes/mocks/issue15_2.txt").unwrap_or_default());
+    let list_one =
+        split(&fs::read_to_string("target/test-classes/mocks/issue15_1.txt").unwrap_or_default());
+    let list_two =
+        split(&fs::read_to_string("target/test-classes/mocks/issue15_2.txt").unwrap_or_default());
 
     let rows = generator.generate_diff_rows(&list_one, &list_two);
 
@@ -402,8 +449,20 @@ fn test_generator_issue22() {
     let generator = DiffRowGenerator::create()
         .show_inline_diffs(true)
         .inline_diff_by_word(true)
-        .old_tag(|_tag, opening| if opening { "~".to_string() } else { "~".to_string() })
-        .new_tag(|_tag, opening| if opening { "**".to_string() } else { "**".to_string() })
+        .old_tag(|_tag, opening| {
+            if opening {
+                "~".to_string()
+            } else {
+                "~".to_string()
+            }
+        })
+        .new_tag(|_tag, opening| {
+            if opening {
+                "**".to_string()
+            } else {
+                "**".to_string()
+            }
+        })
         .build();
     let aa = "This is a test senctence.";
     let bb = "This is a test for diffutils.\nThis is the second line.";
@@ -420,8 +479,20 @@ fn test_generator_issue22_2() {
     let generator = DiffRowGenerator::create()
         .show_inline_diffs(true)
         .inline_diff_by_word(true)
-        .old_tag(|_tag, opening| if opening { "~".to_string() } else { "~".to_string() })
-        .new_tag(|_tag, opening| if opening { "**".to_string() } else { "**".to_string() })
+        .old_tag(|_tag, opening| {
+            if opening {
+                "~".to_string()
+            } else {
+                "~".to_string()
+            }
+        })
+        .new_tag(|_tag, opening| {
+            if opening {
+                "**".to_string()
+            } else {
+                "**".to_string()
+            }
+        })
         .build();
     let aa = "This is a test for diffutils.\nThis is the second line.";
     let bb = "This is a test senctence.";
@@ -438,8 +509,20 @@ fn test_generator_issue22_3() {
     let generator = DiffRowGenerator::create()
         .show_inline_diffs(true)
         .inline_diff_by_word(true)
-        .old_tag(|_tag, opening| if opening { "~".to_string() } else { "~".to_string() })
-        .new_tag(|_tag, opening| if opening { "**".to_string() } else { "**".to_string() })
+        .old_tag(|_tag, opening| {
+            if opening {
+                "~".to_string()
+            } else {
+                "~".to_string()
+            }
+        })
+        .new_tag(|_tag, opening| {
+            if opening {
+                "**".to_string()
+            } else {
+                "**".to_string()
+            }
+        })
         .build();
     let aa = "This is a test senctence.";
     let bb = "This is a test for diffutils.\nThis is the second line.\nAnd one more.";
@@ -475,8 +558,20 @@ fn test_generation_issue44_report_lines_unchanged_problem() {
     let generator = DiffRowGenerator::create()
         .show_inline_diffs(true)
         .report_lines_unchanged(true)
-        .old_tag(|_tag, opening| if opening { "~~".to_string() } else { "~~".to_string() })
-        .new_tag(|_tag, opening| if opening { "**".to_string() } else { "**".to_string() })
+        .old_tag(|_tag, opening| {
+            if opening {
+                "~~".to_string()
+            } else {
+                "~~".to_string()
+            }
+        })
+        .new_tag(|_tag, opening| {
+            if opening {
+                "**".to_string()
+            } else {
+                "**".to_string()
+            }
+        })
         .build();
     let rows = generator.generate_diff_rows(
         &["<dt>To do</dt>".to_string()],
@@ -495,8 +590,20 @@ fn test_ignore_whitespace_issue66() {
         .inline_diff_by_word(true)
         .ignore_white_spaces(true)
         .merge_original_revised(true)
-        .old_tag(|_tag, opening| if opening { "~".to_string() } else { "~".to_string() })
-        .new_tag(|_tag, opening| if opening { "**".to_string() } else { "**".to_string() })
+        .old_tag(|_tag, opening| {
+            if opening {
+                "~".to_string()
+            } else {
+                "~".to_string()
+            }
+        })
+        .new_tag(|_tag, opening| {
+            if opening {
+                "**".to_string()
+            } else {
+                "**".to_string()
+            }
+        })
         .build();
 
     let rows = generator.generate_diff_rows(
@@ -514,8 +621,20 @@ fn test_ignore_whitespace_issue66_2() {
         .inline_diff_by_word(true)
         .ignore_white_spaces(true)
         .merge_original_revised(true)
-        .old_tag(|_tag, opening| if opening { "~".to_string() } else { "~".to_string() })
-        .new_tag(|_tag, opening| if opening { "**".to_string() } else { "**".to_string() })
+        .old_tag(|_tag, opening| {
+            if opening {
+                "~".to_string()
+            } else {
+                "~".to_string()
+            }
+        })
+        .new_tag(|_tag, opening| {
+            if opening {
+                "**".to_string()
+            } else {
+                "**".to_string()
+            }
+        })
         .build();
 
     let rows = generator.generate_diff_rows(
@@ -533,8 +652,20 @@ fn test_ignore_whitespace_issue64() {
         .inline_diff_by_word(true)
         .ignore_white_spaces(true)
         .merge_original_revised(true)
-        .old_tag(|_tag, opening| if opening { "~".to_string() } else { "~".to_string() })
-        .new_tag(|_tag, opening| if opening { "**".to_string() } else { "**".to_string() })
+        .old_tag(|_tag, opening| {
+            if opening {
+                "~".to_string()
+            } else {
+                "~".to_string()
+            }
+        })
+        .new_tag(|_tag, opening| {
+            if opening {
+                "**".to_string()
+            } else {
+                "**".to_string()
+            }
+        })
         .build();
 
     let rows = generator.generate_diff_rows(
@@ -555,8 +686,20 @@ fn test_replace_diffs_issue63() {
         .show_inline_diffs(true)
         .inline_diff_by_word(true)
         .merge_original_revised(true)
-        .old_tag(|_tag, opening| if opening { "~".to_string() } else { "~".to_string() })
-        .new_tag(|_tag, opening| if opening { "**".to_string() } else { "**".to_string() })
+        .old_tag(|_tag, opening| {
+            if opening {
+                "~".to_string()
+            } else {
+                "~".to_string()
+            }
+        })
+        .new_tag(|_tag, opening| {
+            if opening {
+                "**".to_string()
+            } else {
+                "**".to_string()
+            }
+        })
         .process_diffs(|s| s.replace(' ', "/"))
         .build();
 
@@ -565,7 +708,10 @@ fn test_replace_diffs_issue63() {
         &["This is a test".to_string()],
     );
 
-    assert_eq!(rows[0].old_line(), "This~//~**/**is~//~**/**a~//~**/**test~.~");
+    assert_eq!(
+        rows[0].old_line(),
+        "This~//~**/**is~//~**/**a~//~**/**test~.~"
+    );
 }
 
 #[test]
@@ -573,8 +719,20 @@ fn test_problem_too_many_diff_rows_issue65() {
     let generator = DiffRowGenerator::create()
         .show_inline_diffs(true)
         .report_lines_unchanged(true)
-        .old_tag(|_tag, opening| if opening { "~".to_string() } else { "~".to_string() })
-        .new_tag(|_tag, opening| if opening { "**".to_string() } else { "**".to_string() })
+        .old_tag(|_tag, opening| {
+            if opening {
+                "~".to_string()
+            } else {
+                "~".to_string()
+            }
+        })
+        .new_tag(|_tag, opening| {
+            if opening {
+                "**".to_string()
+            } else {
+                "**".to_string()
+            }
+        })
         .merge_original_revised(true)
         .inline_diff_by_word(false)
         .replace_original_linefeed_in_changes_with_spaces(true)
@@ -600,8 +758,20 @@ fn test_problem_too_many_diff_rows_issue65_no_merge() {
     let generator = DiffRowGenerator::create()
         .show_inline_diffs(true)
         .report_lines_unchanged(true)
-        .old_tag(|_tag, opening| if opening { "~".to_string() } else { "~".to_string() })
-        .new_tag(|_tag, opening| if opening { "**".to_string() } else { "**".to_string() })
+        .old_tag(|_tag, opening| {
+            if opening {
+                "~".to_string()
+            } else {
+                "~".to_string()
+            }
+        })
+        .new_tag(|_tag, opening| {
+            if opening {
+                "**".to_string()
+            } else {
+                "**".to_string()
+            }
+        })
         .merge_original_revised(false)
         .inline_diff_by_word(false)
         .build();
@@ -626,8 +796,20 @@ fn test_problem_too_many_diff_rows_issue65_diff_by_word() {
     let generator = DiffRowGenerator::create()
         .show_inline_diffs(true)
         .report_lines_unchanged(true)
-        .old_tag(|_tag, opening| if opening { "~".to_string() } else { "~".to_string() })
-        .new_tag(|_tag, opening| if opening { "**".to_string() } else { "**".to_string() })
+        .old_tag(|_tag, opening| {
+            if opening {
+                "~".to_string()
+            } else {
+                "~".to_string()
+            }
+        })
+        .new_tag(|_tag, opening| {
+            if opening {
+                "**".to_string()
+            } else {
+                "**".to_string()
+            }
+        })
         .merge_original_revised(true)
         .inline_diff_by_word(true)
         .build();
@@ -652,8 +834,20 @@ fn test_problem_too_many_diff_rows_issue65_no_inline_diff() {
     let generator = DiffRowGenerator::create()
         .show_inline_diffs(false)
         .report_lines_unchanged(true)
-        .old_tag(|_tag, opening| if opening { "~".to_string() } else { "~".to_string() })
-        .new_tag(|_tag, opening| if opening { "**".to_string() } else { "**".to_string() })
+        .old_tag(|_tag, opening| {
+            if opening {
+                "~".to_string()
+            } else {
+                "~".to_string()
+            }
+        })
+        .new_tag(|_tag, opening| {
+            if opening {
+                "**".to_string()
+            } else {
+                "**".to_string()
+            }
+        })
         .merge_original_revised(true)
         .inline_diff_by_word(false)
         .build();
@@ -698,8 +892,10 @@ fn test_linefeed_in_standard_tags_with_line_width_issue81() {
 
 #[test]
 fn test_issue86_wrong_inline_diff() {
-    let original_path = Path::new("target/test-classes/com/github/difflib/text/issue_86_original.txt");
-    let revised_path = Path::new("target/test-classes/com/github/difflib/text/issue_86_revised.txt");
+    let original_path =
+        Path::new("target/test-classes/com/github/difflib/text/issue_86_original.txt");
+    let revised_path =
+        Path::new("target/test-classes/com/github/difflib/text/issue_86_revised.txt");
 
     if original_path.exists() && revised_path.exists() {
         let original = fs::read_to_string(original_path).unwrap_or_default();
@@ -709,8 +905,20 @@ fn test_issue86_wrong_inline_diff() {
             .show_inline_diffs(true)
             .merge_original_revised(true)
             .inline_diff_by_word(true)
-            .old_tag(|_tag, opening| if opening { "~".to_string() } else { "~".to_string() })
-            .new_tag(|_tag, opening| if opening { "**".to_string() } else { "**".to_string() })
+            .old_tag(|_tag, opening| {
+                if opening {
+                    "~".to_string()
+                } else {
+                    "~".to_string()
+                }
+            })
+            .new_tag(|_tag, opening| {
+                if opening {
+                    "**".to_string()
+                } else {
+                    "**".to_string()
+                }
+            })
             .build();
         let rows = generator.generate_diff_rows(&split(&original), &split(&revised));
 
@@ -722,14 +930,37 @@ fn test_issue86_wrong_inline_diff() {
 
 #[test]
 fn test_correct_change_issue114() {
-    let original = vec!["A".to_string(), "B".to_string(), "C".to_string(), "D".to_string(), "E".to_string()];
-    let revised = vec!["a".to_string(), "C".to_string(), "".to_string(), "E".to_string()];
+    let original = vec![
+        "A".to_string(),
+        "B".to_string(),
+        "C".to_string(),
+        "D".to_string(),
+        "E".to_string(),
+    ];
+    let revised = vec![
+        "a".to_string(),
+        "C".to_string(),
+        "".to_string(),
+        "E".to_string(),
+    ];
 
     let generator = DiffRowGenerator::create()
         .show_inline_diffs(false)
         .inline_diff_by_word(true)
-        .old_tag(|_tag, opening| if opening { "~".to_string() } else { "~".to_string() })
-        .new_tag(|_tag, opening| if opening { "**".to_string() } else { "**".to_string() })
+        .old_tag(|_tag, opening| {
+            if opening {
+                "~".to_string()
+            } else {
+                "~".to_string()
+            }
+        })
+        .new_tag(|_tag, opening| {
+            if opening {
+                "**".to_string()
+            } else {
+                "**".to_string()
+            }
+        })
         .build();
     let rows = generator.generate_diff_rows(&original, &revised);
 
@@ -737,20 +968,46 @@ fn test_correct_change_issue114() {
         println!("{:?}", diff);
     }
 
-    let tags: Vec<String> = rows.iter().map(|item| format!("{:?}", item.tag())).collect();
+    let tags: Vec<String> = rows
+        .iter()
+        .map(|item| format!("{:?}", item.tag()))
+        .collect();
     assert_eq!(tags, vec!["Change", "Delete", "Equal", "Change", "Equal"]);
 }
 
 #[test]
 fn test_correct_change_issue114_2() {
-    let original = vec!["A".to_string(), "B".to_string(), "C".to_string(), "D".to_string(), "E".to_string()];
-    let revised = vec!["a".to_string(), "C".to_string(), "".to_string(), "E".to_string()];
+    let original = vec![
+        "A".to_string(),
+        "B".to_string(),
+        "C".to_string(),
+        "D".to_string(),
+        "E".to_string(),
+    ];
+    let revised = vec![
+        "a".to_string(),
+        "C".to_string(),
+        "".to_string(),
+        "E".to_string(),
+    ];
 
     let generator = DiffRowGenerator::create()
         .show_inline_diffs(true)
         .inline_diff_by_word(true)
-        .old_tag(|_tag, opening| if opening { "~".to_string() } else { "~".to_string() })
-        .new_tag(|_tag, opening| if opening { "**".to_string() } else { "**".to_string() })
+        .old_tag(|_tag, opening| {
+            if opening {
+                "~".to_string()
+            } else {
+                "~".to_string()
+            }
+        })
+        .new_tag(|_tag, opening| {
+            if opening {
+                "**".to_string()
+            } else {
+                "**".to_string()
+            }
+        })
         .build();
     let rows = generator.generate_diff_rows(&original, &revised);
 
@@ -758,15 +1015,20 @@ fn test_correct_change_issue114_2() {
         println!("{:?}", diff);
     }
 
-    let tags: Vec<String> = rows.iter().map(|item| format!("{:?}", item.tag())).collect();
+    let tags: Vec<String> = rows
+        .iter()
+        .map(|item| format!("{:?}", item.tag()))
+        .collect();
     assert_eq!(tags, vec!["Change", "Delete", "Equal", "Change", "Equal"]);
     assert_eq!(rows[1].to_string(), "[DELETE,~B~,]");
 }
 
 #[test]
 fn test_issue119_wrong_context_length() {
-    let original_path = Path::new("target/test-classes/com/github/difflib/text/issue_119_original.txt");
-    let revised_path = Path::new("target/test-classes/com/github/difflib/text/issue_119_revised.txt");
+    let original_path =
+        Path::new("target/test-classes/com/github/difflib/text/issue_119_original.txt");
+    let revised_path =
+        Path::new("target/test-classes/com/github/difflib/text/issue_119_revised.txt");
 
     if original_path.exists() && revised_path.exists() {
         let original = fs::read_to_string(original_path).unwrap_or_default();
@@ -776,8 +1038,20 @@ fn test_issue119_wrong_context_length() {
             .show_inline_diffs(true)
             .merge_original_revised(true)
             .inline_diff_by_word(true)
-            .old_tag(|_tag, opening| if opening { "~".to_string() } else { "~".to_string() })
-            .new_tag(|_tag, opening| if opening { "**".to_string() } else { "**".to_string() })
+            .old_tag(|_tag, opening| {
+                if opening {
+                    "~".to_string()
+                } else {
+                    "~".to_string()
+                }
+            })
+            .new_tag(|_tag, opening| {
+                if opening {
+                    "**".to_string()
+                } else {
+                    "**".to_string()
+                }
+            })
             .build();
         let rows = generator.generate_diff_rows(&split(&original), &split(&revised));
 
@@ -813,10 +1087,18 @@ fn test_issue129_with_delta_decompression() {
     let txt = DiffRowGenerator::create()
         .show_inline_diffs(true)
         .old_tag(|tag, is_opening| {
-            if is_opening { format!("==old{:?}==>", tag) } else { "<==old==".to_string() }
+            if is_opening {
+                format!("==old{:?}==>", tag)
+            } else {
+                "<==old==".to_string()
+            }
         })
         .new_tag(|tag, is_opening| {
-            if is_opening { format!("==new{:?}==>", tag) } else { "<==new==".to_string() }
+            if is_opening {
+                format!("==new{:?}==>", tag)
+            } else {
+                "<==new==".to_string()
+            }
         })
         .build()
         .generate_diff_rows(&lines1, &lines2)
@@ -858,10 +1140,18 @@ fn test_issue129_skip_delta_decompression() {
         .show_inline_diffs(true)
         .decompress_deltas(false)
         .old_tag(|tag, is_opening| {
-            if is_opening { format!("==old{:?}==>", tag) } else { "<==old==".to_string() }
+            if is_opening {
+                format!("==old{:?}==>", tag)
+            } else {
+                "<==old==".to_string()
+            }
         })
         .new_tag(|tag, is_opening| {
-            if is_opening { format!("==new{:?}==>", tag) } else { "<==new==".to_string() }
+            if is_opening {
+                format!("==new{:?}==>", tag)
+            } else {
+                "<==new==".to_string()
+            }
         })
         .build()
         .generate_diff_rows(&lines1, &lines2)
@@ -891,10 +1181,18 @@ fn test_issue129_skip_whitespace_changes() {
             .inline_diff_by_word(true)
             .ignore_white_spaces(true)
             .old_tag_simple(|is_opening| {
-                if is_opening { "==old==>".to_string() } else { "<==old==".to_string() }
+                if is_opening {
+                    "==old==>".to_string()
+                } else {
+                    "<==old==".to_string()
+                }
             })
             .new_tag(|tag, is_opening| {
-                if is_opening { format!("==new{:?}==>", tag) } else { "<==new==".to_string() }
+                if is_opening {
+                    format!("==new{:?}==>", tag)
+                } else {
+                    "<==new==".to_string()
+                }
             })
             .build();
         let rows = generator.generate_diff_rows(&split(&original), &split(&revised));
@@ -912,10 +1210,24 @@ fn test_generator_with_whitespace_delta_merge() {
         .show_inline_diffs(true)
         .merge_original_revised(true)
         .inline_diff_by_word(true)
-        .old_tag(|_tag, opening| if opening { "~".to_string() } else { "~".to_string() })
-        .new_tag(|_tag, opening| if opening { "**".to_string() } else { "**".to_string() })
+        .old_tag(|_tag, opening| {
+            if opening {
+                "~".to_string()
+            } else {
+                "~".to_string()
+            }
+        })
+        .new_tag(|_tag, opening| {
+            if opening {
+                "**".to_string()
+            } else {
+                "**".to_string()
+            }
+        })
         .line_normalizer(StringUtils::html_entities)
-        .inline_delta_merger_arc(my_diff_crate::text::diff_row_generator::WHITESPACE_EQUALITIES_MERGER.clone())
+        .inline_delta_merger_arc(
+            java_diff_utils_rs::text::diff_row_generator::WHITESPACE_EQUALITIES_MERGER.clone(),
+        )
         .build();
 
     assert_inline_diff_result(&generator, "No diff", "No diff", "No diff");
@@ -963,14 +1275,36 @@ fn test_generator_with_merging_deltas_for_short_equalities() {
         .show_inline_diffs(true)
         .merge_original_revised(true)
         .inline_diff_by_word(true)
-        .old_tag(|_tag, opening| if opening { "~".to_string() } else { "~".to_string() })
-        .new_tag(|_tag, opening| if opening { "**".to_string() } else { "**".to_string() })
+        .old_tag(|_tag, opening| {
+            if opening {
+                "~".to_string()
+            } else {
+                "~".to_string()
+            }
+        })
+        .new_tag(|_tag, opening| {
+            if opening {
+                "**".to_string()
+            } else {
+                "**".to_string()
+            }
+        })
         .inline_delta_merger(short_equalities_merger)
         .build();
 
     assert_inline_diff_result(&generator, "No diff", "No diff", "No diff");
-    assert_inline_diff_result(&generator, "aaa bbb ccc", "xxx bbb zzz", "~aaa bbb ccc~**xxx bbb zzz**");
-    assert_inline_diff_result(&generator, "aaa bbbb ccc", "xxx bbbb zzz", "~aaa~**xxx** bbbb ~ccc~**zzz**");
+    assert_inline_diff_result(
+        &generator,
+        "aaa bbb ccc",
+        "xxx bbb zzz",
+        "~aaa bbb ccc~**xxx bbb zzz**",
+    );
+    assert_inline_diff_result(
+        &generator,
+        "aaa bbbb ccc",
+        "xxx bbbb zzz",
+        "~aaa~**xxx** bbbb ~ccc~**zzz**",
+    );
 }
 
 #[test]
@@ -990,11 +1324,29 @@ fn test_issue188_hang_on_examples() {
                 .merge_original_revised(true)
                 .inline_diff_by_word(true)
                 .decompress_deltas(true)
-                .old_tag(|_tag, f| if f { "<s style=\"background-color: #bbbbbb\">".to_string() } else { "</s>".to_string() })
-                .new_tag(|_tag, f| if f { "<b style=\"background-color: #aaffaa\">".to_string() } else { "</b>".to_string() })
+                .old_tag(|_tag, f| {
+                    if f {
+                        "<s style=\"background-color: #bbbbbb\">".to_string()
+                    } else {
+                        "</s>".to_string()
+                    }
+                })
+                .new_tag(|_tag, f| {
+                    if f {
+                        "<b style=\"background-color: #aaffaa\">".to_string()
+                    } else {
+                        "</b>".to_string()
+                    }
+                })
                 .build();
 
-            let patch = DiffUtils::diff_with_algorithm(&original, &revised, &MyersDiffWithLinearSpace::default(), None, false);
+            let patch = DiffUtils::diff_with_algorithm(
+                &original,
+                &revised,
+                &MyersDiffWithLinearSpace::default(),
+                None,
+                false,
+            );
             let rows = generator.generate_diff_rows_from_patch(&original, &mut patch.clone());
 
             println!("{:?}", rows);

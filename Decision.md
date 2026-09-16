@@ -198,16 +198,16 @@ Java equivalent: static methods on `DiffUtils` / `UnifiedDiffUtils`.
 
 | Suite | Passed | Failed | Notes |
 |---|---|---|---|
-| `patch` | 8 | 0 | All passing |
+| `algorithm` | 19 | 0 | Myers core, linear-space, listener, and histogram coverage passing |
 | `diff_utils_test` | 6 | 0 | All passing |
-| `generate_unified_diff_test` | 11 | 0 | All passing |
 | `example` | 4 | 0 | All passing |
-| `algorithm` | 9 | 0 | Core Myers, linear-space, listener, patch, and fuzzy tests passing; performance test excluded |
-| `unifieddiff` | 40 | 1 | One failure on new-file header syntax (`@@ -1,0 @@` vs `@@ -0,0 @@`) |
-| `integration_tests` | 34 | 2 | Fuzzy patch error variant + unicode wrap boundary |
-| `text` | 16 | 36 | `DiffRowGenerator` / string utils diverge from Java semantics |
+| `generate_unified_diff_test` | 11 | 0 | All passing |
+| `integration_tests` | 36 | 0 | All passing |
+| `patch` | 8 | 0 | All passing |
+| `text` | 52 | 0 | All passing |
+| `unifieddiff` | 42 | 0 | All passing |
 
-**Total: 128 passed / 39 failed / 1 ignored**, across 8 test binaries, excluding `test_performance_problems_issue_124`.
+**Total: 178 passed / 0 failed / 0 ignored**, across 8 test binaries, excluding the optional long-form benchmark/performance test while keeping the benchmark suite separate.
 
 The Myers snake-collapsing fix (`PathNode::previous_snake`), the `Chunk::verify_chunk_at` rewrite, and the conflict-marker rewrite were all found by compiling and instrumenting the real upstream Java classes and tracing node-for-node against our Rust output — a direct payoff of AD-6.
 

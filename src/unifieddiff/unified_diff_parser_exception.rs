@@ -1,5 +1,5 @@
-use std::fmt;
 use std::error::Error;
+use std::fmt;
 
 /// Equivalent to Java's `UnifiedDiffParserException`.
 #[derive(Debug, Clone, PartialEq, Eq)]

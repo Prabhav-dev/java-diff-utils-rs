@@ -1,8 +1,8 @@
 // tests/integration_tests.rs
 
-//! Comprehensive Integration & System Test Suite for `my_diff_crate`
+//! Comprehensive Integration & System Test Suite for `java_diff_utils_rs`
 
-use my_diff_crate::algorithm::{
+use java_diff_utils_rs::algorithm::{
     change::{Change, DeltaType},
     diff_algorithm::DiffAlgorithm,
     diff_algorithm_factory::{DiffAlgorithmFactory, MyersDiffFactory},
@@ -12,23 +12,19 @@ use my_diff_crate::algorithm::{
         myers::MyersDiff, path_node::PathNode, LinearWorkspace,
     },
 };
-use my_diff_crate::patch::{
-    chunk::Chunk,
-    delta::Delta,
-    delta_type::DeltaType as PatchDeltaType,
-    patch_failed_exception::PatchFailedException,
-    verify_chunk::VerifyChunk,
-    Patch,
+use java_diff_utils_rs::patch::{
+    chunk::Chunk, delta::Delta, delta_type::DeltaType as PatchDeltaType,
+    patch_failed_exception::PatchFailedException, verify_chunk::VerifyChunk, Patch,
 };
 
-use my_diff_crate::text::{
+use java_diff_utils_rs::text::{
     delta_merge::{
         delta_merge_utils::DeltaMergeUtils, inline_delta_merge_info::InlineDeltaMergeInfo,
     },
     diff_row_generator::DiffRowGenerator,
     string_utils,
 };
-use my_diff_crate::UnifiedDiffUtils;
+use java_diff_utils_rs::UnifiedDiffUtils;
 
 // =========================================================================
 // 1. Change Struct & PathNode Unit Integrations
@@ -219,9 +215,8 @@ fn test_myers_factory_default_equality() {
 #[test]
 fn test_myers_factory_custom_equalizer() {
     let factory = MyersDiffFactory;
-    let algo = factory.create_with_equalizer(Box::new(|a: &&str, b: &&str| {
-        a.eq_ignore_ascii_case(b)
-    }));
+    let algo =
+        factory.create_with_equalizer(Box::new(|a: &&str, b: &&str| a.eq_ignore_ascii_case(b)));
 
     let source = vec!["apple", "BANANA"];
     let target = vec!["APPLE", "banana"];
@@ -335,7 +330,11 @@ fn test_myers_custom_predicate() {
 
 #[test]
 fn test_basic_diff_and_patch() -> Result<(), PatchFailedException> {
-    let source = vec!["apple".to_string(), "banana".to_string(), "cherry".to_string()];
+    let source = vec![
+        "apple".to_string(),
+        "banana".to_string(),
+        "cherry".to_string(),
+    ];
     let target = vec![
         "apple".to_string(),
         "blueberry".to_string(),
@@ -357,8 +356,18 @@ fn test_basic_diff_and_patch() -> Result<(), PatchFailedException> {
 
 #[test]
 fn test_myers_struct_patch_integration() -> Result<(), PatchFailedException> {
-    let source = vec!["A".to_string(), "B".to_string(), "C".to_string(), "D".to_string()];
-    let target = vec!["A".to_string(), "C".to_string(), "D".to_string(), "E".to_string()];
+    let source = vec![
+        "A".to_string(),
+        "B".to_string(),
+        "C".to_string(),
+        "D".to_string(),
+    ];
+    let target = vec![
+        "A".to_string(),
+        "C".to_string(),
+        "D".to_string(),
+        "E".to_string(),
+    ];
 
     let myers = MyersDiff::<String>::default();
     let changes = myers.diff(&source, &target);
@@ -412,16 +421,31 @@ fn test_chunk_content_mismatch_verification() {
 
 #[test]
 fn test_patch_failure_on_mismatched_target() {
-    let source = vec!["line1".to_string(), "line2".to_string(), "line3".to_string()];
-    let target = vec!["line1".to_string(), "modified".to_string(), "line3".to_string()];
+    let source = vec![
+        "line1".to_string(),
+        "line2".to_string(),
+        "line3".to_string(),
+    ];
+    let target = vec![
+        "line1".to_string(),
+        "modified".to_string(),
+        "line3".to_string(),
+    ];
 
     let changes = compute_diff_linear(&source, &target);
     let patch = Patch::generate(&source, &target, &changes, false);
 
-    let corrupted_source = vec!["wrong1".to_string(), "wrong2".to_string(), "wrong3".to_string()];
+    let corrupted_source = vec![
+        "wrong1".to_string(),
+        "wrong2".to_string(),
+        "wrong3".to_string(),
+    ];
     let result = patch.apply_to(&corrupted_source);
 
-    assert!(result.is_err(), "Expected patch application to fail on corrupted input");
+    assert!(
+        result.is_err(),
+        "Expected patch application to fail on corrupted input"
+    );
 }
 
 #[test]
@@ -543,7 +567,11 @@ fn test_diff_row_generator_side_by_side() {
 #[test]
 fn test_inline_delta_merge_utils() {
     let source = vec!["row1".to_string(), "row2".to_string()];
-    let target = vec!["row1".to_string(), "row2_mod".to_string(), "row3".to_string()];
+    let target = vec![
+        "row1".to_string(),
+        "row2_mod".to_string(),
+        "row3".to_string(),
+    ];
 
     let changes = compute_diff_linear(&source, &target);
     let patch = Patch::generate(&source, &target, &changes, false);
@@ -585,14 +613,20 @@ fn test_unified_diff_generate_parse_and_apply() -> Result<(), PatchFailedExcepti
         1,
     );
 
-    assert!(!unified_lines.is_empty(), "Unified diff output should not be empty");
+    assert!(
+        !unified_lines.is_empty(),
+        "Unified diff output should not be empty"
+    );
     assert!(unified_lines[0].starts_with("--- file1.txt"));
     assert!(unified_lines[1].starts_with("+++ file2.txt"));
 
     let parsed_patch = UnifiedDiffUtils::parse_unified_diff(&unified_lines);
 
     let applied = parsed_patch.apply_to(&source)?;
-    assert_eq!(applied, target, "Applying parsed unified diff must yield target");
+    assert_eq!(
+        applied, target,
+        "Applying parsed unified diff must yield target"
+    );
 
     Ok(())
 }
@@ -605,13 +639,8 @@ fn test_unified_diff_empty_inputs() -> Result<(), PatchFailedException> {
     let changes = compute_diff_linear(&source, &target);
     let patch = Patch::generate(&source, &target, &changes, false);
 
-    let unified_lines = UnifiedDiffUtils::generate_unified_diff(
-        Some("a.txt"),
-        Some("b.txt"),
-        &source,
-        &patch,
-        3,
-    );
+    let unified_lines =
+        UnifiedDiffUtils::generate_unified_diff(Some("a.txt"), Some("b.txt"), &source, &patch, 3);
 
     let parsed_patch = UnifiedDiffUtils::parse_unified_diff(&unified_lines);
     let result = parsed_patch.apply_to(&source)?;

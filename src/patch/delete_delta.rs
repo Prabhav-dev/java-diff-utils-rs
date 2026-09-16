@@ -80,10 +80,7 @@ impl<T> DeleteDelta<T> {
             )));
         }
 
-        target.splice(
-            position..position,
-            self.source().lines().iter().cloned(),
-        );
+        target.splice(position..position, self.source().lines().iter().cloned());
 
         Ok(())
     }

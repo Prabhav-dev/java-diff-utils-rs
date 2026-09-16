@@ -1,4 +1,4 @@
-use my_diff_crate::text::string_utils::StringUtils;
+use java_diff_utils_rs::text::string_utils::StringUtils;
 
 #[test]
 fn test_html_entities() {
@@ -16,7 +16,6 @@ fn test_wrap_text_string_int() {
     assert_eq!("tes<br/>t", StringUtils::wrap_text("test", 3));
     assert_eq!("test", StringUtils::wrap_text("test", 10));
 
-    
     assert_eq!(".𐀁<br/>.", StringUtils::wrap_text(".𐀁.", 2));
     assert_eq!("..𐀁", StringUtils::wrap_text("..\u{10001}", 3));
 }

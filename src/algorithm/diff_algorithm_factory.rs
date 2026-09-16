@@ -37,3 +37,28 @@ impl<T: 'static> DiffAlgorithmFactory<T> for MyersDiffFactory {
         })
     }
 }
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct MyersLinearDiffFactory;
+
+impl<T: PartialEq + 'static> DiffAlgorithmFactory<T> for MyersLinearDiffFactory {
+    fn create(&self) -> Box<dyn DiffAlgorithm<T>>
+    where
+        T: PartialEq + 'static,
+    {
+        Box::new(super::myers::myers_linear::MyersDiffWithLinearSpace::<T>::new())
+    }
+
+    fn create_with_equalizer(
+        &self,
+        equalizer: Box<dyn Fn(&T, &T) -> bool + 'static>,
+    ) -> Box<dyn DiffAlgorithm<T>> {
+        Box::new(
+            super::myers::myers_linear::MyersDiffWithLinearSpace::<T>::with_equalizer(
+                move |a: &T, b: &T| equalizer(a, b),
+            ),
+        )
+    }
+}
+
+pub use super::histogram::HistogramDiffFactory;

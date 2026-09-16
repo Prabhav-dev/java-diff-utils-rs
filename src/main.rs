@@ -1,11 +1,13 @@
-use my_diff_crate::algorithm::myers::myers::MyersDiff;
-use my_diff_crate::algorithm::DiffAlgorithm;
-use my_diff_crate::patch::patch_failed_exception::PatchFailedException;
-use my_diff_crate::patch::Patch;
-use my_diff_crate::text::delta_merge::delta_merge_utils::DeltaMergeUtils;
-use my_diff_crate::text::delta_merge::inline_delta_merge_info::InlineDeltaMergeInfo;
-use my_diff_crate::text::diff_row_generator::DiffRowGenerator;
-use my_diff_crate::text::string_utils;
+#![forbid(unsafe_code)]
+
+use java_diff_utils_rs::algorithm::myers::myers::MyersDiff;
+use java_diff_utils_rs::algorithm::DiffAlgorithm;
+use java_diff_utils_rs::patch::patch_failed_exception::PatchFailedException;
+use java_diff_utils_rs::patch::Patch;
+use java_diff_utils_rs::text::delta_merge::delta_merge_utils::DeltaMergeUtils;
+use java_diff_utils_rs::text::delta_merge::inline_delta_merge_info::InlineDeltaMergeInfo;
+use java_diff_utils_rs::text::diff_row_generator::DiffRowGenerator;
+use java_diff_utils_rs::text::string_utils;
 
 fn main() -> Result<(), PatchFailedException> {
     println!("=== 1. Core Patch & Diff Demo ===");
@@ -78,11 +80,8 @@ fn main() -> Result<(), PatchFailedException> {
     println!("\n=== 4. Inline Delta Merging (DeltaMergeUtils) ===");
 
     // Construct InlineDeltaMergeInfo using deltas from existing patch
-    let merge_info = InlineDeltaMergeInfo::new(
-        patch.deltas().to_vec(),
-        source.clone(),
-        target.clone(),
-    );
+    let merge_info =
+        InlineDeltaMergeInfo::new(patch.deltas().to_vec(), source.clone(), target.clone());
 
     // Demonstrate DeltaMergeUtils by merging adjacent deltas
     let merged_deltas = DeltaMergeUtils::merge_inline_deltas(&merge_info, |equalities| {

@@ -1,7 +1,7 @@
 //! Utilities for generating and parsing single-file Unified Diffs.
 
-use std::collections::HashMap;
 use regex::Regex;
+use std::collections::HashMap;
 
 use crate::diff_utils::DiffUtils;
 use crate::patch::change_delta::ChangeDelta;
@@ -148,15 +148,14 @@ impl UnifiedDiffUtils {
         if patch_deltas.len() > 1 {
             for next_delta_box in patch_deltas.iter().skip(1) {
                 let position = delta.source().position();
-                let next_delta = next_delta_box.as_ref();
+                let next_delta = next_delta_box;
 
                 if (position + delta.source().size() + context_size)
                     >= next_delta.source().position().saturating_sub(context_size)
                 {
                     deltas.push(next_delta);
                 } else {
-                    let cur_block =
-                        Self::process_deltas(original_lines, &deltas, context_size);
+                    let cur_block = Self::process_deltas(original_lines, &deltas, context_size);
                     ret.extend(cur_block);
                     deltas.clear();
                     deltas.push(next_delta);
@@ -165,8 +164,7 @@ impl UnifiedDiffUtils {
             }
         }
 
-        let cur_block =
-            Self::process_deltas(original_lines, &deltas, context_size);
+        let cur_block = Self::process_deltas(original_lines, &deltas, context_size);
         ret.extend(cur_block);
 
         ret
@@ -212,8 +210,7 @@ impl UnifiedDiffUtils {
             last_delta = next_delta;
         }
 
-        let post_context_start =
-            last_delta.source().position() + last_delta.source().lines().len();
+        let post_context_start = last_delta.source().position() + last_delta.source().lines().len();
         let post_context_end = (post_context_start + context_size).min(orig_lines.len());
 
         for line in post_context_start..post_context_end {
@@ -275,13 +272,8 @@ impl UnifiedDiffUtils {
         let rev_name = revised_file_name.unwrap_or("revised");
 
         let patch = DiffUtils::diff(original, revised, None);
-        let mut unified_diff = Self::generate_unified_diff(
-            Some(orig_name),
-            Some(rev_name),
-            original,
-            &patch,
-            0,
-        );
+        let mut unified_diff =
+            Self::generate_unified_diff(Some(orig_name), Some(rev_name), original, &patch, 0);
 
         if unified_diff.is_empty() {
             unified_diff.push(format!("--- {}", orig_name));
@@ -349,10 +341,7 @@ impl UnifiedDiffUtils {
                 start = 0;
             }
 
-            if simb.contains("@@ -1,")
-                && nex_simb.is_none()
-                && map["orgDel"] != original.len()
-            {
+            if simb.contains("@@ -1,") && nex_simb.is_none() && map["orgDel"] != original.len() {
                 result.extend(Self::get_orig_list(original, start, original.len() - 1));
             } else if nex_simb.is_none()
                 && (map["orgRow"] + map["orgDel"]).wrapping_sub(1) < original.len()
@@ -384,10 +373,7 @@ impl UnifiedDiffUtils {
 
     fn get_orig_list(original_with_prefix: &[String], start: usize, end: usize) -> Vec<String> {
         let mut list = Vec::new();
-        if !original_with_prefix.is_empty()
-            && start <= end
-            && end < original_with_prefix.len()
-        {
+        if !original_with_prefix.is_empty() && start <= end && end < original_with_prefix.len() {
             for item in original_with_prefix.iter().take(end + 1).skip(start) {
                 list.push(item.clone());
             }

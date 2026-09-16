@@ -11,8 +11,20 @@ pub struct PathNode {
 }
 
 impl PathNode {
-    pub fn new(i: usize, j: isize, is_snake: bool, is_bootstrap: bool, prev: Option<usize>) -> Self {
-        Self { i, j, is_snake, is_bootstrap, prev }
+    pub fn new(
+        i: usize,
+        j: isize,
+        is_snake: bool,
+        is_bootstrap: bool,
+        prev: Option<usize>,
+    ) -> Self {
+        Self {
+            i,
+            j,
+            is_snake,
+            is_bootstrap,
+            prev,
+        }
     }
 
     pub fn fmt_path(arena: &[PathNode], start_idx: usize) -> String {
@@ -51,8 +63,10 @@ impl Display for PathFormatter<'_> {
         let mut first = true;
 
         while let Some(idx) = curr {
-            let Some(node) = self.arena.get(idx) else { break };
-            
+            let Some(node) = self.arena.get(idx) else {
+                break;
+            };
+
             if !first {
                 write!(f, ", ")?;
             }

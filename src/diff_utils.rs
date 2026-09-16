@@ -7,12 +7,15 @@ use crate::algorithm::{DiffAlgorithm, DiffAlgorithmFactory, DiffAlgorithmListene
 use crate::patch::patch_failed_exception::PatchFailedException;
 use crate::patch::Patch;
 
-static DEFAULT_DIFF_FACTORY: RwLock<Option<Box<dyn DiffAlgorithmFactory<String> + Send + Sync>>> = RwLock::new(None);
+static DEFAULT_DIFF_FACTORY: RwLock<Option<Box<dyn DiffAlgorithmFactory<String> + Send + Sync>>> =
+    RwLock::new(None);
 
 pub struct DiffUtils;
 
 impl DiffUtils {
-    pub fn with_default_diff_algorithm_factory(factory: Box<dyn DiffAlgorithmFactory<String> + Send + Sync>) {
+    pub fn with_default_diff_algorithm_factory(
+        factory: Box<dyn DiffAlgorithmFactory<String> + Send + Sync>,
+    ) {
         if let Ok(mut guard) = DEFAULT_DIFF_FACTORY.write() {
             *guard = Some(factory);
         }
@@ -52,11 +55,7 @@ impl DiffUtils {
         Self::diff(&original, &revised, progress)
     }
 
-    pub fn diff_with_equalizer<T, F>(
-        source: &[T],
-        target: &[T],
-        equalizer: Option<F>,
-    ) -> Patch<T>
+    pub fn diff_with_equalizer<T, F>(source: &[T], target: &[T], equalizer: Option<F>) -> Patch<T>
     where
         T: PartialEq + Clone + 'static,
         F: Fn(&T, &T) -> bool + Send + Sync + 'static,

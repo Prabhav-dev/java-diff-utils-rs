@@ -1,13 +1,11 @@
-use my_diff_crate::algorithm::myers::myers::MyersDiff;
-use my_diff_crate::algorithm::DiffAlgorithm;
-use my_diff_crate::diff_utils::DiffUtils;
-use my_diff_crate::patch::patch::Patch;
+use java_diff_utils_rs::algorithm::myers::myers::MyersDiff;
+use java_diff_utils_rs::algorithm::DiffAlgorithm;
+use java_diff_utils_rs::diff_utils::DiffUtils;
+use java_diff_utils_rs::patch::patch::Patch;
 
 // MyersDiffWithLinearSpace is imported from your module tree if available, or MyersDiff fallback
 fn get_algorithms() -> Vec<Box<dyn DiffAlgorithm<String>>> {
-    vec![
-        Box::new(MyersDiff::new()),
-    ]
+    vec![Box::new(MyersDiff::new())]
 }
 
 #[test]
@@ -21,7 +19,13 @@ fn test_patch_insert() {
             "lll".to_string(),
         ];
 
-        let patch = DiffUtils::diff_with_algorithm(&insert_test_from, &insert_test_to, algo.as_ref(), None, false);
+        let patch = DiffUtils::diff_with_algorithm(
+            &insert_test_from,
+            &insert_test_to,
+            algo.as_ref(),
+            None,
+            false,
+        );
         let result = DiffUtils::patch(&insert_test_from, &patch)
             .expect("Patch application failed for Insert test");
 
@@ -40,7 +44,13 @@ fn test_patch_delete() {
         ];
         let delete_test_to = vec!["ggg".to_string()];
 
-        let patch = DiffUtils::diff_with_algorithm(&delete_test_from, &delete_test_to, algo.as_ref(), None, false);
+        let patch = DiffUtils::diff_with_algorithm(
+            &delete_test_from,
+            &delete_test_to,
+            algo.as_ref(),
+            None,
+            false,
+        );
         let result = DiffUtils::patch(&delete_test_from, &patch)
             .expect("Patch application failed for Delete test");
 
@@ -64,7 +74,13 @@ fn test_patch_change() {
             "ddd".to_string(),
         ];
 
-        let patch = DiffUtils::diff_with_algorithm(&change_test_from, &change_test_to, algo.as_ref(), None, false);
+        let patch = DiffUtils::diff_with_algorithm(
+            &change_test_from,
+            &change_test_to,
+            algo.as_ref(),
+            None,
+            false,
+        );
         let result = DiffUtils::patch(&change_test_from, &patch)
             .expect("Patch application failed for Change test");
 
@@ -88,12 +104,17 @@ fn test_patch_serializable() {
             "ddd".to_string(),
         ];
 
-        let patch = DiffUtils::diff_with_algorithm(&change_test_from, &change_test_to, algo.as_ref(), None, false);
+        let patch = DiffUtils::diff_with_algorithm(
+            &change_test_from,
+            &change_test_to,
+            algo.as_ref(),
+            None,
+            false,
+        );
 
-        let serialized = bincode::serialize(&patch)
-            .expect("Failed to serialize Patch struct");
-        let deserialized_patch: Patch<String> = bincode::deserialize(&serialized)
-            .expect("Failed to deserialize Patch struct");
+        let serialized = bincode::serialize(&patch).expect("Failed to serialize Patch struct");
+        let deserialized_patch: Patch<String> =
+            bincode::deserialize(&serialized).expect("Failed to deserialize Patch struct");
 
         let result = DiffUtils::patch(&change_test_from, &deserialized_patch)
             .expect("Patch application failed after deserialization");

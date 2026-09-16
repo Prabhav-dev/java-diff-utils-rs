@@ -94,12 +94,7 @@ impl UnifiedDiffWriter {
                     }
                 }
 
-                Self::process_deltas(
-                    &mut writer,
-                    &original_lines,
-                    &deltas,
-                    context_size,
-                );
+                Self::process_deltas(&mut writer, &original_lines, &deltas, context_size);
             }
         }
 
@@ -158,8 +153,7 @@ impl UnifiedDiffWriter {
             last_delta = next_delta;
         }
 
-        let post_context_start =
-            last_delta.source().position() + last_delta.source().lines().len();
+        let post_context_start = last_delta.source().position() + last_delta.source().lines().len();
         let post_context_end = (post_context_start + context_size).min(orig_lines.len());
 
         for line in post_context_start..post_context_end {

@@ -33,7 +33,7 @@ impl fmt::Display for Tag {
     }
 }
 
-/// Describes a diff row in the form `[tag, old_line, new_line]` 
+/// Describes a diff row in the form `[tag, old_line, new_line]`
 /// for showing differences between two texts side-by-side.
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct DiffRow {

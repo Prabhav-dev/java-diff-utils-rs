@@ -1,4 +1,7 @@
-use super::{change::Change, diff_algorithm_listener::{DiffAlgorithmListener, NoOpListener}};
+use super::{
+    change::Change,
+    diff_algorithm_listener::{DiffAlgorithmListener, NoOpListener},
+};
 
 pub trait DiffAlgorithm<T> {
     fn diff(&self, source: &[T], target: &[T]) -> Vec<Change> {

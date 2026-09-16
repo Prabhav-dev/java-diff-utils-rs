@@ -1,6 +1,6 @@
 use std::io::Cursor;
 
-use my_diff_crate::unifieddiff::unified_diff_reader::UnifiedDiffReader;
+use java_diff_utils_rs::unifieddiff::unified_diff_reader::UnifiedDiffReader;
 
 #[test]
 fn test_issue_135_missing_no_new_line_in_patched() {
@@ -18,8 +18,8 @@ fn test_issue_135_missing_no_new_line_in_patched() {
 
     let stream = Cursor::new(patch.as_bytes());
 
-    let unified_diff = UnifiedDiffReader::parse_unified_diff(stream)
-        .expect("Failed to parse unified diff");
+    let unified_diff =
+        UnifiedDiffReader::parse_unified_diff(stream).expect("Failed to parse unified diff");
 
     let file = &unified_diff.files()[0];
     // Convert to Vec<String> instead of Vec<&str>

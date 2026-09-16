@@ -1,8 +1,8 @@
+use super::path_node::PathNode;
 use crate::algorithm::change::Change;
 use crate::algorithm::diff_algorithm_listener::DiffAlgorithmListener;
 use crate::algorithm::DiffAlgorithm;
 use crate::patch::delta_type::DeltaType;
-use super::path_node::PathNode;
 
 #[derive(Default)]
 pub struct DiffWorkspace {
@@ -122,13 +122,7 @@ where
     ws.clear();
 
     // Re-borrow listener using as_deref_mut()
-    let head_idx = build_path(
-        source,
-        target,
-        &equalizer,
-        ws,
-        listener.as_deref_mut(),
-    );
+    let head_idx = build_path(source, target, &equalizer, ws, listener.as_deref_mut());
 
     let result = if let Some(idx) = head_idx {
         build_revision(&ws.arena, idx)
@@ -314,6 +308,6 @@ fn build_revision(arena: &[PathNode], head_idx: usize) -> Vec<Change> {
         };
     }
 
-raw_changes.reverse();
+    raw_changes.reverse();
     raw_changes
 }

@@ -37,9 +37,7 @@ pub fn wrap_text(line: &str, column_width: usize) -> String {
 }
 
 pub fn wrap_text_list(list: &[String], column_width: usize) -> Vec<String> {
-    list.iter()
-        .map(|s| wrap_text(s, column_width))
-        .collect()
+    list.iter().map(|s| wrap_text(s, column_width)).collect()
 }
 
 // 2. Struct wrapper mapping to the standalone functions

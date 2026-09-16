@@ -2,11 +2,11 @@
 
 //! Transpiled Unit Tests for `com.github.difflib.algorithm.myers.MyersDiffTest`
 
-use my_diff_crate::algorithm::{
+use java_diff_utils_rs::algorithm::{
     diff_algorithm::DiffAlgorithm, diff_algorithm_listener::DiffAlgorithmListener,
     myers::myers::MyersDiff,
 };
-use my_diff_crate::patch::Patch;
+use java_diff_utils_rs::patch::Patch;
 
 /// Listener implementation to record lifecycle callbacks into a log vector.
 #[derive(Default)]
@@ -35,7 +35,7 @@ fn test_diff_myers_example_1_forward() {
 
     let myers = MyersDiff::<&str>::default();
     let changes = myers.diff(&original, &revised);
-    
+
     println!("--- RAW CHANGES ---");
     for c in &changes {
         println!("{:?}", c);

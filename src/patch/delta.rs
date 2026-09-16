@@ -1,7 +1,7 @@
 //! Delta representation of sequence modifications between target lists.
 
-use std::fmt;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 use super::chunk::Chunk;
 use super::delta_type::DeltaType;
@@ -9,7 +9,7 @@ use super::error::PatchError;
 use super::verify_chunk::VerifyChunk;
 
 /// Represents a single modification delta between a source chunk and a target chunk.
-#[derive(Serialize, Deserialize,Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(bound(serialize = "T: Serialize", deserialize = "T: Deserialize<'de>"))]
 pub struct Delta<T> {
     delta_type: DeltaType,

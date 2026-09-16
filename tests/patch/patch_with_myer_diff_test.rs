@@ -1,5 +1,5 @@
-use my_diff_crate::diff_utils::DiffUtils;
-use my_diff_crate::patch::conflict_produces_merge_conflict;
+use java_diff_utils_rs::diff_utils::DiffUtils;
+use java_diff_utils_rs::patch::conflict_produces_merge_conflict;
 
 #[test]
 fn test_patch_change_with_exception_processor() {
@@ -16,13 +16,12 @@ fn test_patch_change_with_exception_processor() {
         "ddd".to_string(),
     ];
 
-let patch = DiffUtils::diff(&change_test_from, &change_test_to, None)
-    .with_conflict_output(conflict_produces_merge_conflict);
+    let patch = DiffUtils::diff(&change_test_from, &change_test_to, None)
+        .with_conflict_output(conflict_produces_merge_conflict);
 
     change_test_from[2] = "CDC".to_string();
 
-    let data = DiffUtils::patch(&change_test_from, &patch)
-        .expect("Patch application failed");
+    let data = DiffUtils::patch(&change_test_from, &patch).expect("Patch application failed");
 
     assert_eq!(data.len(), 9);
 
@@ -56,11 +55,11 @@ fn test_patch_three_way_issue_138() {
         .map(String::from)
         .collect();
 
-    let right_patch = DiffUtils::diff(&base, &right, None)
-    .with_conflict_output(conflict_produces_merge_conflict);
+    let right_patch =
+        DiffUtils::diff(&base, &right, None).with_conflict_output(conflict_produces_merge_conflict);
 
-    let applied = DiffUtils::patch(&left, &right_patch)
-        .expect("Three-way patch application failed");
+    let applied =
+        DiffUtils::patch(&left, &right_patch).expect("Three-way patch application failed");
 
     assert_eq!(applied.join(" "), "IMAGINE there's no HEAVEN");
 }

@@ -1,9 +1,9 @@
+use regex::Regex;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
-use regex::Regex;
 
-use my_diff_crate::unifieddiff::unified_diff_reader::UnifiedDiffReader;
+use java_diff_utils_rs::unifieddiff::unified_diff_reader::UnifiedDiffReader;
 
 /// Helper function to mirror Java's `getResourceAsStream`.
 /// Reads a fixture file located at `tests/fixtures/<filename>`.
@@ -39,14 +39,21 @@ fn test_parse_diff_block() {
     let diff_line = "diff --git a/src/test/java/net/sf/jsqlparser/statement/select/SelectTest.java b/src/test/java/net/sf/jsqlparser/statement/select/SelectTest.java";
     let (from, to) = UnifiedDiffReader::<std::io::Empty>::parse_file_names(diff_line);
 
-    assert_eq!(from, "src/test/java/net/sf/jsqlparser/statement/select/SelectTest.java");
-    assert_eq!(to, "src/test/java/net/sf/jsqlparser/statement/select/SelectTest.java");
+    assert_eq!(
+        from,
+        "src/test/java/net/sf/jsqlparser/statement/select/SelectTest.java"
+    );
+    assert_eq!(
+        to,
+        "src/test/java/net/sf/jsqlparser/statement/select/SelectTest.java"
+    );
 }
 
 #[test]
 fn test_chunk_header_parsing() {
     let pattern = Regex::new(r"^@@\s+-(?:(\d+)(?:,(\d+))?)\s+\+(?:(\d+)(?:,(\d+))?)\s+@@").unwrap();
-    let text = "@@ -189,6 +189,7 @@ TOKEN: /* SQL Keywords. prefixed with K_ to avoid name clashes */";
+    let text =
+        "@@ -189,6 +189,7 @@ TOKEN: /* SQL Keywords. prefixed with K_ to avoid name clashes */";
 
     let captures = pattern.captures(text).expect("Pattern should match header");
     assert_eq!(captures.get(1).map(|m| m.as_str()), Some("189"));
@@ -358,7 +365,10 @@ fn test_parse_issue_110() {
 
     let file = &diff.files()[4];
     assert_eq!(file.similarity_index(), Some(87));
-    assert_eq!(file.rename_from(), Some("service-type-database/build-db.in"));
+    assert_eq!(
+        file.rename_from(),
+        Some("service-type-database/build-db.in")
+    );
     assert_eq!(file.rename_to(), Some("service-type-database/build-db"));
 
     assert_eq!(file.from_file(), Some("service-type-database/build-db.in"));

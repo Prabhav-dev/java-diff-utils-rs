@@ -60,10 +60,7 @@ impl<T> InsertDelta<T> {
             )));
         }
 
-        target.splice(
-            position..position,
-            self.target().lines().iter().cloned(),
-        );
+        target.splice(position..position, self.target().lines().iter().cloned());
 
         Ok(())
     }

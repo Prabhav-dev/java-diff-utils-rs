@@ -1,7 +1,7 @@
-use std::fs;
 use std::error::Error;
+use std::fs;
 
-use my_diff_crate::diff_utils::DiffUtils;
+use java_diff_utils_rs::diff_utils::DiffUtils;
 
 const ORIGINAL_PATH: &str = "tests/fixtures/original.txt";
 const REVISED_PATH: &str = "tests/fixtures/revised.txt";

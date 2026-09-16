@@ -1,5 +1,5 @@
-use my_diff_crate::patch::chunk::Chunk;
-use my_diff_crate::patch::verify_chunk::VerifyChunk;
+use java_diff_utils_rs::patch::chunk::Chunk;
+use java_diff_utils_rs::patch::verify_chunk::VerifyChunk;
 
 fn to_char_list(s: &str) -> Vec<char> {
     s.chars().collect()

@@ -1,7 +1,7 @@
 //! Parser for reading and building a `UnifiedDiff` from text streams or readers.
 
-use std::io::{BufRead, BufReader, Read};
 use regex::Regex;
+use std::io::{BufRead, BufReader, Read};
 
 use super::unified_diff::UnifiedDiff;
 use super::unified_diff_file::UnifiedDiffFile;
@@ -147,9 +147,7 @@ impl<R: Read> UnifiedDiffReader<R> {
     }
 
     pub fn extract_timestamp(line: &str) -> Option<String> {
-        TIMESTAMP_REGEXP
-            .find(line)
-            .map(|m| m.as_str().to_string())
+        TIMESTAMP_REGEXP.find(line).map(|m| m.as_str().to_string())
     }
 
     /// Helper static function to parse an input stream into a `UnifiedDiff`.

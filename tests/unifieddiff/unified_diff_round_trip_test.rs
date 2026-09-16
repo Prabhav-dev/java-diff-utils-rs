@@ -2,11 +2,11 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, Cursor};
 use std::path::PathBuf;
 
-use my_diff_crate::diff_utils::DiffUtils;
-use my_diff_crate::unifieddiff::unified_diff::UnifiedDiff;
-use my_diff_crate::unifieddiff::unified_diff_file::UnifiedDiffFile;
-use my_diff_crate::unifieddiff::unified_diff_reader::UnifiedDiffReader;
-use my_diff_crate::unifieddiff::unified_diff_writer::UnifiedDiffWriter;
+use java_diff_utils_rs::diff_utils::DiffUtils;
+use java_diff_utils_rs::unifieddiff::unified_diff::UnifiedDiff;
+use java_diff_utils_rs::unifieddiff::unified_diff_file::UnifiedDiffFile;
+use java_diff_utils_rs::unifieddiff::unified_diff_reader::UnifiedDiffReader;
+use java_diff_utils_rs::unifieddiff::unified_diff_writer::UnifiedDiffWriter;
 
 /// Helper function to read file lines from the fixture directory (`tests/fixtures/`).
 fn file_to_lines(filename: &str) -> Vec<String> {
@@ -17,7 +17,7 @@ fn file_to_lines(filename: &str) -> Vec<String> {
 
     let file = File::open(&path)
         .unwrap_or_else(|_| panic!("Failed to find test fixture file: {:?}", path));
-    
+
     BufReader::new(file)
         .lines()
         .map(|l| l.expect("Failed to read line"))
@@ -40,12 +40,13 @@ fn verify(orig_lines: &[String], rev_lines: &[String], original_file: &str, revi
     )
     .expect("Failed to write unified diff");
 
-    let diff_output_str = String::from_utf8(writer_buffer)
-        .expect("Generated diff should be valid UTF-8");
+    let diff_output_str =
+        String::from_utf8(writer_buffer).expect("Generated diff should be valid UTF-8");
     println!("{}", diff_output_str);
 
-    let mut parsed_diff = UnifiedDiffReader::parse_unified_diff(Cursor::new(diff_output_str.as_bytes()))
-        .expect("Failed to parse unified diff");
+    let mut parsed_diff =
+        UnifiedDiffReader::parse_unified_diff(Cursor::new(diff_output_str.as_bytes()))
+            .expect("Failed to parse unified diff");
 
     let patched_lines = parsed_diff
         .apply_patch_to(|file| file == original_file, orig_lines)
@@ -80,7 +81,12 @@ fn test_generate_unified_with_one_delta() {
     let orig_lines = file_to_lines("one_delta_test_original.txt");
     let rev_lines = file_to_lines("one_delta_test_revised.txt");
 
-    verify(&orig_lines, &rev_lines, "one_delta_test_original.txt", "one_delta_test_revised.txt");
+    verify(
+        &orig_lines,
+        &rev_lines,
+        "one_delta_test_original.txt",
+        "one_delta_test_revised.txt",
+    );
 }
 
 #[test]
@@ -92,13 +98,8 @@ fn test_generate_unified_diff_without_any_deltas() {
     let diff_data = UnifiedDiff::from(Some("header"), Some("tail"), vec![file_entry]);
 
     let mut writer_buffer = Vec::new();
-    UnifiedDiffWriter::write(
-        &diff_data,
-        |_file_name| test.clone(),
-        &mut writer_buffer,
-        0,
-    )
-    .expect("Failed to write unified diff");
+    UnifiedDiffWriter::write(&diff_data, |_file_name| test.clone(), &mut writer_buffer, 0)
+        .expect("Failed to write unified diff");
 
     let output = String::from_utf8(writer_buffer).unwrap();
     println!("{}", output);
@@ -167,5 +168,8 @@ fn test_diff_with_header_line_in_text() {
     println!("{}", diff_str);
 
     let parsed_diff = UnifiedDiffReader::parse_unified_diff(Cursor::new(diff_str.as_bytes()));
-    assert!(parsed_diff.is_ok(), "Failed to parse round-tripped diff string");
+    assert!(
+        parsed_diff.is_ok(),
+        "Failed to parse round-tripped diff string"
+    );
 }

@@ -44,7 +44,7 @@ pub fn ignore_whitespace_equalizer() -> EqualizerFn {
 
 /// Default line normalizer for HTML escaping.
 pub fn html_line_normalizer() -> StringTransformFn {
-    Arc::new(|line| string_utils::normalize(line))
+    Arc::new(string_utils::normalize)
 }
 
 /// Character-by-character splitter.
@@ -189,11 +189,7 @@ impl DiffRowGenerator {
     }
 
     /// Generates `DiffRow` items comparing two string sequences.
-    pub fn generate_diff_rows(
-        &self,
-        original: &[String],
-        revised: &[String],
-    ) -> Vec<DiffRow> {
+    pub fn generate_diff_rows(&self, original: &[String], revised: &[String]) -> Vec<DiffRow> {
         let mut patch = crate::diff_utils::DiffUtils::diff_with_equalizer(
             original,
             revised,
@@ -218,12 +214,18 @@ impl DiffRowGenerator {
         if self.decompress_deltas {
             for original_delta in &delta_list {
                 for delta in self.decompress_deltas_internal(original_delta) {
-                    end_pos = self.transform_delta_into_diff_row(original, end_pos, &mut diff_rows, &delta);
+                    end_pos = self.transform_delta_into_diff_row(
+                        original,
+                        end_pos,
+                        &mut diff_rows,
+                        &delta,
+                    );
                 }
             }
         } else {
             for delta in &delta_list {
-                end_pos = self.transform_delta_into_diff_row(original, end_pos, &mut diff_rows, delta);
+                end_pos =
+                    self.transform_delta_into_diff_row(original, end_pos, &mut diff_rows, delta);
             }
         }
 
@@ -249,10 +251,10 @@ impl DiffRowGenerator {
                 let same_source_position = current.source().position() == next.source().position();
 
                 let should_merge = same_source_position
-                    && (
-                        (current.delta_type() == DeltaType::Delete && next.delta_type() == DeltaType::Insert)
-                            || (current.delta_type() == DeltaType::Insert && next.delta_type() == DeltaType::Delete)
-                    );
+                    && ((current.delta_type() == DeltaType::Delete
+                        && next.delta_type() == DeltaType::Insert)
+                        || (current.delta_type() == DeltaType::Insert
+                            && next.delta_type() == DeltaType::Delete));
 
                 if should_merge {
                     let merged_source = if current.delta_type() == DeltaType::Delete {
@@ -376,15 +378,13 @@ impl DiffRowGenerator {
             DiffRow::new(tag_type, orgline, newline)
         } else {
             let mut wrap_org = self.preprocess_line(orgline);
-            if Tag::Delete == tag_type {
-                if self.merge_original_revised || self.show_inline_diffs {
-                    wrap_org = format!(
-                        "{}{}{}",
-                        (self.old_tag)(tag_type, true),
-                        wrap_org,
-                        (self.old_tag)(tag_type, false)
-                    );
-                }
+            if Tag::Delete == tag_type && (self.merge_original_revised || self.show_inline_diffs) {
+                wrap_org = format!(
+                    "{}{}{}",
+                    (self.old_tag)(tag_type, true),
+                    wrap_org,
+                    (self.old_tag)(tag_type, false)
+                );
             }
 
             let mut wrap_new = self.preprocess_line(newline);
@@ -410,7 +410,12 @@ impl DiffRowGenerator {
         }
     }
 
-    fn build_diff_row_without_normalizing(&self, tag_type: Tag, orgline: &str, newline: &str) -> DiffRow {
+    fn build_diff_row_without_normalizing(
+        &self,
+        tag_type: Tag,
+        orgline: &str,
+        newline: &str,
+    ) -> DiffRow {
         DiffRow::new(
             tag_type,
             string_utils::wrap_text(orgline, self.column_width),
@@ -422,7 +427,9 @@ impl DiffRowGenerator {
         if self.report_lines_unchanged {
             list.to_vec()
         } else {
-            list.iter().map(|line| (self.line_normalizer)(line)).collect()
+            list.iter()
+                .map(|line| (self.line_normalizer)(line))
+                .collect()
         }
     }
 
@@ -446,11 +453,8 @@ impl DiffRowGenerator {
         );
         let original_inline_deltas = patch.deltas().to_vec();
 
-        let inline_merge_info = InlineDeltaMergeInfo::new(
-            original_inline_deltas,
-            orig_list.clone(),
-            rev_list.clone(),
-        );
+        let inline_merge_info =
+            InlineDeltaMergeInfo::new(original_inline_deltas, orig_list.clone(), rev_list.clone());
         let mut inline_deltas: Vec<Delta<String>> = (self.inline_delta_merger)(&inline_merge_info);
         inline_deltas.reverse();
 
@@ -486,7 +490,8 @@ impl DiffRowGenerator {
                         );
                         let tags_added = temp_rev.len() - len_before;
                         let insert_start = inline_rev.position().min(temp_rev.len());
-                        let insert_end = (inline_rev.position() + inline_rev.len() + tags_added).min(temp_rev.len());
+                        let insert_end = (inline_rev.position() + inline_rev.len() + tags_added)
+                            .min(temp_rev.len());
                         let sub = temp_rev[insert_start..insert_end].to_vec();
                         let orig_pos = inline_orig.position().min(orig_list.len());
                         orig_list.splice(orig_pos..orig_pos, sub);
@@ -531,9 +536,13 @@ impl DiffRowGenerator {
                         let orig_tags_added = orig_list.len() - orig_len_before;
 
                         let insert_start = inline_rev.position().min(temp_rev.len());
-                        let insert_end = (inline_rev.position() + inline_rev.len() + rev_tags_added).min(temp_rev.len());
+                        let insert_end =
+                            (inline_rev.position() + inline_rev.len() + rev_tags_added)
+                                .min(temp_rev.len());
                         let sub = temp_rev[insert_start..insert_end].to_vec();
-                        let orig_pos = (inline_orig.position() + inline_orig.len() + orig_tags_added).min(orig_list.len());
+                        let orig_pos =
+                            (inline_orig.position() + inline_orig.len() + orig_tags_added)
+                                .min(orig_list.len());
                         orig_list.splice(orig_pos..orig_pos, sub);
                     } else {
                         wrap_in_tag(
@@ -564,13 +573,18 @@ impl DiffRowGenerator {
         let orig_result: String = orig_list.concat();
         let rev_result: String = rev_list.concat();
 
-        let mut original_split: Vec<String> = orig_result.split('\n').map(|s| s.to_string()).collect();
-        let mut revised_split: Vec<String> = rev_result.split('\n').map(|s| s.to_string()).collect();
+        let mut original_split: Vec<String> =
+            orig_result.split('\n').map(|s| s.to_string()).collect();
+        let mut revised_split: Vec<String> =
+            rev_result.split('\n').map(|s| s.to_string()).collect();
 
-        while original_split.len() > orig.len() && original_split.last().map_or(false, |s| s.is_empty()) {
+        while original_split.len() > orig.len()
+            && original_split.last().is_some_and(|s| s.is_empty())
+        {
             original_split.pop();
         }
-        while revised_split.len() > rev.len() && revised_split.last().map_or(false, |s| s.is_empty()) {
+        while revised_split.len() > rev.len() && revised_split.last().is_some_and(|s| s.is_empty())
+        {
             revised_split.pop();
         }
 
@@ -580,7 +594,11 @@ impl DiffRowGenerator {
         for j in 0..max_lines {
             let orig_line = original_split.get(j).map(|s| s.as_str()).unwrap_or("");
             let rev_line = revised_split.get(j).map(|s| s.as_str()).unwrap_or("");
-            diff_rows.push(self.build_diff_row_without_normalizing(Tag::Change, orig_line, rev_line));
+            diff_rows.push(self.build_diff_row_without_normalizing(
+                Tag::Change,
+                orig_line,
+                rev_line,
+            ));
         }
 
         diff_rows
@@ -812,7 +830,8 @@ impl Builder {
             inline_delta_merger: self.inline_delta_merger,
             equality_processor: self.equality_processor,
             show_inline_diffs: self.show_inline_diffs,
-            replace_original_linefeed_in_changes_with_spaces: self.replace_original_linefeed_in_changes_with_spaces,
+            replace_original_linefeed_in_changes_with_spaces: self
+                .replace_original_linefeed_in_changes_with_spaces,
             decompress_deltas: self.decompress_deltas,
         }
     }

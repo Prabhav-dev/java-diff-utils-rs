@@ -34,11 +34,12 @@ impl DeltaMergeUtils {
             let start_idx = prev_source_pos + prev_source_len;
             let end_idx = current_delta.source().position();
 
-            let equalities = if start_idx <= end_idx && end_idx <= delta_merge_info.orig_list().len() {
-                &delta_merge_info.orig_list()[start_idx..end_idx]
-            } else {
-                &[]
-            };
+            let equalities =
+                if start_idx <= end_idx && end_idx <= delta_merge_info.orig_list().len() {
+                    &delta_merge_info.orig_list()[start_idx..end_idx]
+                } else {
+                    &[]
+                };
 
             if replace_equality(equalities) {
                 // Merge previous delta, equalities, and current delta into a single Change delta
@@ -52,22 +53,13 @@ impl DeltaMergeUtils {
                 all_target_lines.extend(equalities.iter().cloned());
                 all_target_lines.extend(current_delta.target().lines().iter().cloned());
 
-                let replacement_source = Chunk::new(
-                    previous_delta.source().position(),
-                    all_source_lines,
-                    None,
-                );
-                let replacement_target = Chunk::new(
-                    previous_delta.target().position(),
-                    all_target_lines,
-                    None,
-                );
+                let replacement_source =
+                    Chunk::new(previous_delta.source().position(), all_source_lines, None);
+                let replacement_target =
+                    Chunk::new(previous_delta.target().position(), all_target_lines, None);
 
-                let replacement = Delta::new(
-                    DeltaType::Change,
-                    replacement_source,
-                    replacement_target,
-                );
+                let replacement =
+                    Delta::new(DeltaType::Change, replacement_source, replacement_target);
 
                 new_deltas.pop();
                 new_deltas.push(replacement);

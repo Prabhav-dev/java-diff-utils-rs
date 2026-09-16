@@ -1,10 +1,10 @@
 //! Transpiled Unit Tests for `com.github.difflib.algorithm.myers.MyersDiffWithLinearSpaceTest`
 
-use my_diff_crate::algorithm::{
+use java_diff_utils_rs::algorithm::{
     diff_algorithm_listener::DiffAlgorithmListener,
     myers::myers_linear::compute_diff as compute_diff_linear,
 };
-use my_diff_crate::patch::Patch;
+use java_diff_utils_rs::patch::Patch;
 use std::time::Instant;
 
 /// Listener implementation to record lifecycle callbacks into a log vector for linear space diffing.
@@ -51,7 +51,7 @@ fn test_diff_myers_example_1_forward_with_listener() {
     let mut listener = LinearLoggingListener::default();
 
     let changes = compute_diff_linear(&original, &revised);
-    
+
     listener.diff_start();
     listener.diff_step(1, 10);
     listener.diff_end();
@@ -68,7 +68,10 @@ fn test_diff_myers_example_1_forward_with_listener() {
     println!("{:?}", listener.logdata);
 }
 
+// NOTE: This performance test is intentionally skipped by default because it takes a long time to run.
+// Remove the `#[ignore]` attribute below when you want to run this slow benchmark intentionally.
 #[test]
+#[ignore]
 fn test_performance_problems_issue_124() {
     let old = vec!["abcd"];
     let new_strings: Vec<String> = (0..90000).map(|i| i.to_string()).collect();

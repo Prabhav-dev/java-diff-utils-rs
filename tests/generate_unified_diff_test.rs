@@ -1,5 +1,5 @@
-use my_diff_crate::diff_utils::DiffUtils;
-use my_diff_crate::UnifiedDiffUtils;
+use java_diff_utils_rs::diff_utils::DiffUtils;
+use java_diff_utils_rs::UnifiedDiffUtils;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
@@ -21,7 +21,12 @@ fn file_to_lines(filename: &str) -> Vec<String> {
         .collect()
 }
 
-fn verify(orig_lines: Vec<String>, rev_lines: Vec<String>, original_file: &str, revised_file: &str) {
+fn verify(
+    orig_lines: Vec<String>,
+    rev_lines: Vec<String>,
+    original_file: &str,
+    revised_file: &str,
+) {
     let patch = DiffUtils::diff(&orig_lines, &rev_lines, None);
     let unified_diff = UnifiedDiffUtils::generate_unified_diff(
         Some(original_file),
@@ -82,13 +87,8 @@ fn test_generate_unified_diff_without_any_deltas() {
     let test_revised = vec!["abc2".to_string()];
 
     let patch = DiffUtils::diff(&test, &test_revised, None);
-    let unified_diff = UnifiedDiffUtils::generate_unified_diff(
-        Some("abc1"),
-        Some("abc2"),
-        &test,
-        &patch,
-        0,
-    );
+    let unified_diff =
+        UnifiedDiffUtils::generate_unified_diff(Some("abc1"), Some("abc2"), &test, &patch, 0);
     let unified_diff_txt = unified_diff.join("\n");
     println!("{}", unified_diff_txt);
 
@@ -163,13 +163,8 @@ fn test_new_file_creation() {
     let revised = vec!["line1".to_string(), "line2".to_string()];
 
     let patch = DiffUtils::diff(&original, &revised, None);
-    let udiff = UnifiedDiffUtils::generate_unified_diff(
-        None,
-        Some("revised"),
-        &original,
-        &patch,
-        10,
-    );
+    let udiff =
+        UnifiedDiffUtils::generate_unified_diff(None, Some("revised"), &original, &patch, 10);
 
     assert_eq!(udiff[0], "--- /dev/null");
     assert_eq!(udiff[1], "+++ revised");
@@ -193,7 +188,7 @@ fn test_change_position() {
 }
 
 fn validate_change_position(
-    patch: &my_diff_crate::patch::Patch<String>,
+    patch: &java_diff_utils_rs::patch::Patch<String>,
     index: usize,
     real_remove_list: &[usize],
     real_add_list: &[usize],
