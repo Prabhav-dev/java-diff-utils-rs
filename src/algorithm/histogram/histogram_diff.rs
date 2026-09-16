@@ -127,6 +127,8 @@ where
         total_steps,
     );
 
+    normalize_replacements(&mut script);
+
     if let Some(l) = listener {
         l.diff_end();
     }
@@ -188,6 +190,30 @@ fn histogram_rec<T, F, L>(
         l.diff_step(src_start + tgt_start, total_steps);
     }
 
+    if should_fallback_to_myers(source, src_start, src_end, target, tgt_start, tgt_end, equalizer) {
+        let fallback_algo = MyersDiffWithLinearSpace::new();
+        let sub_source = &source[src_start..src_end];
+        let sub_target = &target[tgt_start..tgt_end];
+
+        let sub_changes = fallback_algo.diff_with_listener(
+            sub_source,
+            sub_target,
+            &mut crate::algorithm::diff_algorithm_listener::NoOpListener,
+        );
+
+        for c in sub_changes {
+            push_change(
+                script,
+                c.delta_type,
+                src_start + c.start_original,
+                src_start + c.end_original,
+                tgt_start + c.start_revised,
+                tgt_start + c.end_revised,
+            );
+        }
+        return;
+    }
+
     // Base cases: purely insertion or deletion
     if src_len == 0 {
         push_change(
@@ -209,6 +235,36 @@ fn histogram_rec<T, F, L>(
             tgt_start,
             tgt_start,
         );
+        return;
+    }
+
+    let src_distinct = distinct_count(source, src_start, src_end, equalizer);
+    let tgt_distinct = distinct_count(target, tgt_start, tgt_end, equalizer);
+
+    if (src_distinct > 32 || tgt_distinct > 32)
+        && (has_high_frequency_value(source, src_start, src_end, equalizer, max_chain_length)
+            || has_high_frequency_value(target, tgt_start, tgt_end, equalizer, max_chain_length))
+    {
+        let fallback_algo = MyersDiffWithLinearSpace::new();
+        let sub_source = &source[src_start..src_end];
+        let sub_target = &target[tgt_start..tgt_end];
+
+        let sub_changes = fallback_algo.diff_with_listener(
+            sub_source,
+            sub_target,
+            &mut crate::algorithm::diff_algorithm_listener::NoOpListener,
+        );
+
+        for c in sub_changes {
+            push_change(
+                script,
+                c.delta_type,
+                src_start + c.start_original,
+                src_start + c.end_original,
+                tgt_start + c.start_revised,
+                tgt_start + c.end_revised,
+            );
+        }
         return;
     }
 
@@ -277,7 +333,104 @@ fn histogram_rec<T, F, L>(
     }
 }
 
+struct OccurrenceBucket<'a, T> {
+    value: &'a T,
+    count: usize,
+    first_index: usize,
+}
+
 #[allow(clippy::too_many_arguments)]
+fn should_fallback_to_myers<T, F>(
+    source: &[T],
+    src_start: usize,
+    src_end: usize,
+    target: &[T],
+    tgt_start: usize,
+    tgt_end: usize,
+    equalizer: &F,
+) -> bool
+where
+    T: PartialEq,
+    F: Fn(&T, &T) -> bool + ?Sized,
+{
+    let src_len = src_end - src_start;
+    let tgt_len = tgt_end - tgt_start;
+    if src_len == 0 || tgt_len == 0 {
+        return false;
+    }
+
+    let distinct_source = distinct_count(source, src_start, src_end, equalizer);
+    let distinct_target = distinct_count(target, tgt_start, tgt_end, equalizer);
+
+    (distinct_source > 32 || distinct_target > 32)
+        && (src_len > 0 && tgt_len > 0)
+        && (distinct_source >= 64 || distinct_target >= 64)
+}
+
+fn distinct_count<T, F>(sequence: &[T], start: usize, end: usize, equalizer: &F) -> usize
+where
+    T: PartialEq,
+    F: Fn(&T, &T) -> bool + ?Sized,
+{
+    let mut seen = Vec::new();
+    for i in start..end {
+        let value = &sequence[i];
+        let mut already_seen = false;
+        for prev in &seen {
+            if equalizer(value, *prev) {
+                already_seen = true;
+                break;
+            }
+        }
+        if !already_seen {
+            seen.push(value);
+        }
+    }
+    seen.len()
+}
+
+fn has_high_frequency_value<T, F>(
+    sequence: &[T],
+    start: usize,
+    end: usize,
+    equalizer: &F,
+    max_chain_length: usize,
+) -> bool
+where
+    T: PartialEq,
+    F: Fn(&T, &T) -> bool + ?Sized,
+{
+    let distinct = distinct_count(sequence, start, end, equalizer);
+    if distinct <= 32 {
+        return false;
+    }
+
+    let mut buckets: Vec<OccurrenceBucket<'_, T>> = Vec::new();
+
+    for i in start..end {
+        let value = &sequence[i];
+        let mut found = false;
+
+        for bucket in &mut buckets {
+            if equalizer(value, bucket.value) {
+                bucket.count += 1;
+                found = true;
+                break;
+            }
+        }
+
+        if !found {
+            buckets.push(OccurrenceBucket {
+                value,
+                count: 1,
+                first_index: i,
+            });
+        }
+    }
+
+    buckets.iter().any(|bucket| bucket.count > max_chain_length)
+}
+
 fn find_best_anchor<T, F>(
     source: &[T],
     target: &[T],
@@ -292,46 +445,99 @@ where
     T: PartialEq,
     F: Fn(&T, &T) -> bool + ?Sized,
 {
-    let mut best_anchor: Option<MatchAnchor> = None;
-    let mut lowest_occurrence = max_chain_length + 1;
-
+    let mut source_buckets: Vec<OccurrenceBucket<'_, T>> = Vec::new();
     for i in src_start..src_end {
-        let mut count = 0;
-        let mut first_match_j = 0;
-
-        for j in tgt_start..tgt_end {
-            if equalizer(&source[i], &target[j]) {
-                count += 1;
-                if count == 1 {
-                    first_match_j = j;
-                }
-                if count >= lowest_occurrence {
-                    break;
-                }
+        let value = &source[i];
+        let mut bucket_idx = None;
+        for (idx, bucket) in source_buckets.iter_mut().enumerate() {
+            if equalizer(value, bucket.value) {
+                bucket.count += 1;
+                bucket_idx = Some(idx);
+                break;
             }
         }
 
-        if count > 0 && count < lowest_occurrence {
-            lowest_occurrence = count;
+        if bucket_idx.is_none() {
+            source_buckets.push(OccurrenceBucket {
+                value,
+                count: 1,
+                first_index: i,
+            });
+        }
+    }
 
-            // Expand match length forward as far as possible
-            let mut len = 1;
-            while (i + len) < src_end
-                && (first_match_j + len) < tgt_end
-                && equalizer(&source[i + len], &target[first_match_j + len])
-            {
-                len += 1;
+    let mut target_buckets: Vec<OccurrenceBucket<'_, T>> = Vec::new();
+    for j in tgt_start..tgt_end {
+        let value = &target[j];
+        let mut bucket_idx = None;
+        for (idx, bucket) in target_buckets.iter_mut().enumerate() {
+            if equalizer(value, bucket.value) {
+                bucket.count += 1;
+                bucket_idx = Some(idx);
+                break;
             }
+        }
 
+        if bucket_idx.is_none() {
+            target_buckets.push(OccurrenceBucket {
+                value,
+                count: 1,
+                first_index: j,
+            });
+        }
+    }
+
+    let mut best_anchor: Option<MatchAnchor> = None;
+    let mut lowest_occurrence = max_chain_length + 1;
+    let mut best_len = 0usize;
+
+    for source_bucket in &source_buckets {
+        let target_bucket = target_buckets
+            .iter()
+            .find(|bucket| equalizer(source_bucket.value, bucket.value));
+
+        let Some(target_bucket) = target_bucket else {
+            continue;
+        };
+
+        let occurrence_count = source_bucket.count.min(target_bucket.count);
+        if occurrence_count == 0 || occurrence_count > max_chain_length {
+            // Large repeated alphabets are still valid anchors in a histogram split;
+            // JGit prefers the longest anchor run among the lowest count values instead
+            // of treating all repeated values as a no-op. We therefore keep these as
+            // candidates during anchor selection and only reject truly empty matches.
+            if occurrence_count == 0 {
+                continue;
+            }
+        }
+
+        if occurrence_count == 0 {
+            continue;
+        }
+
+        let src_idx = source_bucket.first_index;
+        let tgt_idx = target_bucket.first_index;
+        let mut len = 1usize;
+        while (src_idx + len) < src_end
+            && (tgt_idx + len) < tgt_end
+            && equalizer(&source[src_idx + len], &target[tgt_idx + len])
+        {
+            len += 1;
+        }
+
+        if occurrence_count < lowest_occurrence
+            || (occurrence_count == lowest_occurrence && len > best_len)
+        {
+            lowest_occurrence = occurrence_count;
+            best_len = len;
             best_anchor = Some(MatchAnchor {
-                src_idx: i,
-                tgt_idx: first_match_j,
+                src_idx,
+                tgt_idx,
                 len,
             });
 
-            // If unique match found (occurrence == 1), this is the ideal anchor
-            if count == 1 {
-                break;
+            if occurrence_count == 1 {
+                return best_anchor;
             }
         }
     }
@@ -370,6 +576,45 @@ fn push_change(
         start_revised: tgt_start,
         end_revised: tgt_end,
     });
+}
+
+fn normalize_replacements(script: &mut Vec<Change>) {
+    let mut normalized: Vec<Change> = Vec::with_capacity(script.len());
+
+    for change in script.drain(..) {
+        if let Some(previous) = normalized.last_mut() {
+            let replacement = match (previous.delta_type, change.delta_type) {
+                (DeltaType::Insert, DeltaType::Delete)
+                    if previous.start_original == change.start_original
+                        && previous.end_revised == change.start_revised => Some(Change {
+                        delta_type: DeltaType::Change,
+                        start_original: change.start_original,
+                        end_original: change.end_original,
+                        start_revised: previous.start_revised,
+                        end_revised: change.end_revised,
+                    }),
+                (DeltaType::Delete, DeltaType::Insert)
+                    if previous.end_original == change.start_original
+                        && previous.end_revised == change.start_revised => Some(Change {
+                        delta_type: DeltaType::Change,
+                        start_original: previous.start_original,
+                        end_original: previous.end_original,
+                        start_revised: previous.start_revised,
+                        end_revised: change.end_revised,
+                    }),
+                _ => None,
+            };
+
+            if let Some(replacement) = replacement {
+                *previous = replacement;
+                continue;
+            }
+        }
+
+        normalized.push(change);
+    }
+
+    *script = normalized;
 }
 
 /// Factory for creating `HistogramDiff` algorithm instances.

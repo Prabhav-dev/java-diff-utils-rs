@@ -123,6 +123,6 @@ impl DiffUtils {
     }
 
     fn get_default_algorithm<T: PartialEq + Clone + 'static>() -> Box<dyn DiffAlgorithm<T>> {
-        Box::new(MyersDiff::default())
+        Box::new(crate::algorithm::HistogramDiff::default())
     }
 }

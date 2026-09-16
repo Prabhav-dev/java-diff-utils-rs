@@ -8,7 +8,7 @@ use java_diff_utils_rs::algorithm::{
     },
     DiffAlgorithm,
 };
-use java_diff_utils_rs::patch::Patch;
+use java_diff_utils_rs::{DiffUtils, patch::Patch};
 
 #[derive(Default)]
 struct HistogramLoggingListener {
@@ -149,6 +149,63 @@ fn test_histogram_factory() {
     let target = vec!["foo".to_string(), "baz".to_string()];
 
     let changes = algo.diff(&source, &target);
+    let patch = Patch::generate(&source, &target, &changes, false);
+    let applied = patch.apply_to(&source).expect("Apply failed");
+    assert_eq!(applied, target);
+}
+
+#[test]
+fn test_diff_utils_uses_histogram_by_default() {
+    let source = vec!["A", "B", "C", "D", "A", "B", "C", "D"];
+    let target = vec!["A", "B", "X", "D", "A", "B", "C", "D"];
+
+    let patch = DiffUtils::diff(&source, &target, None);
+    assert!(!patch.deltas().is_empty());
+    let applied = patch.apply_to(&source).expect("Apply failed");
+    assert_eq!(applied, target);
+}
+
+#[test]
+fn test_histogram_repeated_values_coalesce_like_jgit() {
+    let alphabet = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q"];
+    let mut source = Vec::new();
+    let mut target = Vec::new();
+
+    for i in 0..120 {
+        let value = alphabet[i % alphabet.len()];
+        source.push(value);
+        target.push(value);
+    }
+
+    let changed = ["R", "S", "T", "U", "V", "W", "X", "Y", "Z", "A", "B", "C", "D", "E", "F", "G", "H"];
+    for (idx, value) in changed.iter().enumerate() {
+        target[40 + idx] = *value;
+    }
+
+    let changes = HistogramDiff::new().diff(&source, &target);
+    assert!(changes.len() <= 2, "expected JGit-like coalescing, got {} changes: {:?}", changes.len(), changes);
+    let patch = Patch::generate(&source, &target, &changes, false);
+    let applied = patch.apply_to(&source).expect("Apply failed");
+    assert_eq!(applied, target);
+}
+
+#[test]
+fn test_histogram_large_low_entropy_repeated_input_matches_jgit_shape() {
+    let mut source = Vec::new();
+    let mut target = Vec::new();
+
+    for i in 0..100_000 {
+        let value = i % 17;
+        source.push(value);
+        target.push(value);
+    }
+
+    target.splice(10_000..10_020, std::iter::repeat(31).take(20));
+    target.splice(50_000..50_000, std::iter::repeat(41).take(30));
+
+    let changes = HistogramDiff::new().diff(&source, &target);
+    assert!(changes.len() <= 2, "expected JGit-like coalescing for low-entropy repeated data, got {} changes: {:?}", changes.len(), changes);
+
     let patch = Patch::generate(&source, &target, &changes, false);
     let applied = patch.apply_to(&source).expect("Apply failed");
     assert_eq!(applied, target);

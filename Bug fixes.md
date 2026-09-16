@@ -95,3 +95,24 @@ All test suites now pass completely:
 
 **Total: 169 passed, 0 failed, 0 ignored (100% test pass rate)**
 
+---
+
+## 6. HistogramDiff Default and Repeated-Value Handling in 0.1.0-alpha.2
+
+* **Affected Areas**:
+  * `src/diff_utils.rs`
+  * `src/algorithm/histogram/histogram_diff.rs`
+  * `tests/algorithm/histogram_diff_test.rs`
+
+* **Root Cause**:
+  `DiffUtils` still selected MyersDiff by default, while HistogramDiff could emit adjacent insert/delete records for one replacement. High-frequency repeated values also caused unnecessary fallback and repeated region processing.
+
+* **Fix**:
+  1. Changed the default DiffUtils algorithm to HistogramDiff.
+  2. Added replacement normalization so adjacent insert/delete records representing one replacement become a single Change record.
+  3. Added low-entropy repeated-value regression coverage for the 100,000-element case.
+  4. Bumped the crate version to `0.1.0-alpha.2` and documented the release in `changes.md`.
+
+* **Verification**:
+  The affected `algorithm`, `diff_utils_test`, and `patch` targets passed with 35 tests passing and 1 ignored. A fresh release-mode benchmark against JGit is still required before claiming full performance parity for the repeated-value case.
+
