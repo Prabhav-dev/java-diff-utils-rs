@@ -8,6 +8,13 @@ repository = "https://github.com/Prabhav-dev/java-diff-utils-rs"
 homepage = "https://github.com/Prabhav-dev/java-diff-utils-rs"
 keywords = ["diff", "patch", "myers", "unified-diff"]
 categories = ["algorithms", "text-processing"]
+exclude = [
+    "tests/**/*",
+    "benches/**/*",
+    "Decision.md",
+    "Bug fixes.md",
+    "TESTS.md",
+]
 
 [dev-dependencies]
 bincode = "1.3"
