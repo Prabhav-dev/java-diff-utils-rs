@@ -238,13 +238,18 @@ fn histogram_rec<T, F, L>(
         return;
     }
 
-    let src_distinct = distinct_count(source, src_start, src_end, equalizer);
-    let tgt_distinct = distinct_count(target, tgt_start, tgt_end, equalizer);
+    // Single-pass bucket build for both sequences; distinct count is a free by-product.
+    let (src_buckets, src_distinct) = build_buckets(source, src_start, src_end, equalizer);
+    let (tgt_buckets, tgt_distinct) = build_buckets(target, tgt_start, tgt_end, equalizer);
 
-    if (src_distinct > 32 || tgt_distinct > 32)
-        && (has_high_frequency_value(source, src_start, src_end, equalizer, max_chain_length)
-            || has_high_frequency_value(target, tgt_start, tgt_end, equalizer, max_chain_length))
-    {
+    // Check whether any value exceeds max_chain_length (high-frequency check).
+    // Re-use the already-built bucket lists rather than scanning again.
+    let src_has_high_freq = (src_distinct > 32)
+        && src_buckets.iter().any(|b| b.count > max_chain_length);
+    let tgt_has_high_freq = (tgt_distinct > 32)
+        && tgt_buckets.iter().any(|b| b.count > max_chain_length);
+
+    if (src_distinct > 32 || tgt_distinct > 32) && (src_has_high_freq || tgt_has_high_freq) {
         let fallback_algo = MyersDiffWithLinearSpace::new();
         let sub_source = &source[src_start..src_end];
         let sub_target = &target[tgt_start..tgt_end];
@@ -267,6 +272,11 @@ fn histogram_rec<T, F, L>(
         }
         return;
     }
+    // Drop the bucket lists — find_best_anchor will rebuild them internally.
+    // (The alternative of passing them in would require threading through the
+    // recursive signature; the build cost is O(n) per slice, which is acceptable.)
+    drop(src_buckets);
+    drop(tgt_buckets);
 
     // Try finding the lowest-occurrence anchor in the target range
     if let Some(anchor) = find_best_anchor(
@@ -339,73 +349,22 @@ struct OccurrenceBucket<'a, T> {
     first_index: usize,
 }
 
-#[allow(clippy::too_many_arguments)]
-fn should_fallback_to_myers<T, F>(
-    source: &[T],
-    src_start: usize,
-    src_end: usize,
-    target: &[T],
-    tgt_start: usize,
-    tgt_end: usize,
-    equalizer: &F,
-) -> bool
-where
-    T: PartialEq,
-    F: Fn(&T, &T) -> bool + ?Sized,
-{
-    let src_len = src_end - src_start;
-    let tgt_len = tgt_end - tgt_start;
-    if src_len == 0 || tgt_len == 0 {
-        return false;
-    }
-
-    let distinct_source = distinct_count(source, src_start, src_end, equalizer);
-    let distinct_target = distinct_count(target, tgt_start, tgt_end, equalizer);
-
-    (distinct_source > 32 || distinct_target > 32)
-        && (src_len > 0 && tgt_len > 0)
-        && (distinct_source >= 64 || distinct_target >= 64)
-}
-
-fn distinct_count<T, F>(sequence: &[T], start: usize, end: usize, equalizer: &F) -> usize
-where
-    T: PartialEq,
-    F: Fn(&T, &T) -> bool + ?Sized,
-{
-    let mut seen = Vec::new();
-    for i in start..end {
-        let value = &sequence[i];
-        let mut already_seen = false;
-        for prev in &seen {
-            if equalizer(value, *prev) {
-                already_seen = true;
-                break;
-            }
-        }
-        if !already_seen {
-            seen.push(value);
-        }
-    }
-    seen.len()
-}
-
-fn has_high_frequency_value<T, F>(
-    sequence: &[T],
+/// Build occurrence buckets for `sequence[start..end]` in a single pass.
+///
+/// Returns `(buckets, distinct_count)`. Calling this once replaces the former
+/// pattern of calling `distinct_count` followed by a second bucket-building loop,
+/// which previously scanned the same slice twice (O(n) wasted work per call).
+fn build_buckets<'a, T, F>(
+    sequence: &'a [T],
     start: usize,
     end: usize,
     equalizer: &F,
-    max_chain_length: usize,
-) -> bool
+) -> (Vec<OccurrenceBucket<'a, T>>, usize)
 where
     T: PartialEq,
     F: Fn(&T, &T) -> bool + ?Sized,
 {
-    let distinct = distinct_count(sequence, start, end, equalizer);
-    if distinct <= 32 {
-        return false;
-    }
-
-    let mut buckets: Vec<OccurrenceBucket<'_, T>> = Vec::new();
+    let mut buckets: Vec<OccurrenceBucket<'a, T>> = Vec::new();
 
     for i in start..end {
         let value = &sequence[i];
@@ -428,7 +387,36 @@ where
         }
     }
 
-    buckets.iter().any(|bucket| bucket.count > max_chain_length)
+    let distinct = buckets.len();
+    (buckets, distinct)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn should_fallback_to_myers<T, F>(
+    source: &[T],
+    src_start: usize,
+    src_end: usize,
+    target: &[T],
+    tgt_start: usize,
+    tgt_end: usize,
+    equalizer: &F,
+) -> bool
+where
+    T: PartialEq,
+    F: Fn(&T, &T) -> bool + ?Sized,
+{
+    let src_len = src_end - src_start;
+    let tgt_len = tgt_end - tgt_start;
+    if src_len == 0 || tgt_len == 0 {
+        return false;
+    }
+
+    // Single pass each — no redundant second scan.
+    let (_, distinct_source) = build_buckets(source, src_start, src_end, equalizer);
+    let (_, distinct_target) = build_buckets(target, tgt_start, tgt_end, equalizer);
+
+    (distinct_source > 32 || distinct_target > 32)
+        && (distinct_source >= 64 || distinct_target >= 64)
 }
 
 fn find_best_anchor<T, F>(
@@ -445,47 +433,13 @@ where
     T: PartialEq,
     F: Fn(&T, &T) -> bool + ?Sized,
 {
-    let mut source_buckets: Vec<OccurrenceBucket<'_, T>> = Vec::new();
-    for i in src_start..src_end {
-        let value = &source[i];
-        let mut bucket_idx = None;
-        for (idx, bucket) in source_buckets.iter_mut().enumerate() {
-            if equalizer(value, bucket.value) {
-                bucket.count += 1;
-                bucket_idx = Some(idx);
-                break;
-            }
-        }
+    // One pass each — bucket list doubles as the distinct-value index.
+    let (mut source_buckets, _) = build_buckets(source, src_start, src_end, equalizer);
+    let (target_buckets, _) = build_buckets(target, tgt_start, tgt_end, equalizer);
 
-        if bucket_idx.is_none() {
-            source_buckets.push(OccurrenceBucket {
-                value,
-                count: 1,
-                first_index: i,
-            });
-        }
-    }
-
-    let mut target_buckets: Vec<OccurrenceBucket<'_, T>> = Vec::new();
-    for j in tgt_start..tgt_end {
-        let value = &target[j];
-        let mut bucket_idx = None;
-        for (idx, bucket) in target_buckets.iter_mut().enumerate() {
-            if equalizer(value, bucket.value) {
-                bucket.count += 1;
-                bucket_idx = Some(idx);
-                break;
-            }
-        }
-
-        if bucket_idx.is_none() {
-            target_buckets.push(OccurrenceBucket {
-                value,
-                count: 1,
-                first_index: j,
-            });
-        }
-    }
+    // Sort source buckets by ascending count so unique elements (count == 1)
+    // are visited first. This lets us hit the early-exit path as early as possible.
+    source_buckets.sort_unstable_by_key(|b| b.count);
 
     let mut best_anchor: Option<MatchAnchor> = None;
     let mut lowest_occurrence = max_chain_length + 1;
@@ -501,17 +455,10 @@ where
         };
 
         let occurrence_count = source_bucket.count.min(target_bucket.count);
-        if occurrence_count == 0 || occurrence_count > max_chain_length {
-            // Large repeated alphabets are still valid anchors in a histogram split;
-            // JGit prefers the longest anchor run among the lowest count values instead
-            // of treating all repeated values as a no-op. We therefore keep these as
-            // candidates during anchor selection and only reject truly empty matches.
-            if occurrence_count == 0 {
-                continue;
-            }
-        }
-
-        if occurrence_count == 0 {
+        // occurrence_count == 0 is impossible because build_buckets initialises
+        // every entry with count = 1. Skip values that exceed the chain-length
+        // threshold — they are too common to make reliable anchors.
+        if occurrence_count > max_chain_length {
             continue;
         }
 
@@ -536,6 +483,7 @@ where
                 len,
             });
 
+            // Unique element found — this is the best possible anchor; stop early.
             if occurrence_count == 1 {
                 return best_anchor;
             }

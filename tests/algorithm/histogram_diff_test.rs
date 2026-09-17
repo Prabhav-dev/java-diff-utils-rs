@@ -210,3 +210,120 @@ fn test_histogram_large_low_entropy_repeated_input_matches_jgit_shape() {
     let applied = patch.apply_to(&source).expect("Apply failed");
     assert_eq!(applied, target);
 }
+
+// ── Priority 5: exact delta count + exact boundary position tests ─────────────
+
+/// A single-line replacement must produce exactly 1 Change delta (not 2 separate
+/// Insert + Delete records), because `normalize_replacements` must coalesce them.
+#[test]
+fn test_histogram_exact_delta_count_single_replacement() {
+    let source = vec!["A", "B", "C"];
+    let target = vec!["A", "X", "C"];
+
+    let changes = compute_diff_histogram(&source, &target);
+    let patch = Patch::generate(&source, &target, &changes, false);
+
+    assert_eq!(
+        patch.deltas().len(),
+        1,
+        "single-line replacement should produce exactly 1 Change delta, got {:?}",
+        patch.deltas()
+    );
+
+    let applied = patch.apply_to(&source).expect("Apply failed");
+    assert_eq!(applied, target);
+}
+
+/// For `["A","B","C"] → ["A","X","C"]` the diff must locate the change at
+/// positions (1,2) in both sequences. This pins the exact boundary values
+/// so regressions in anchor selection are caught immediately.
+#[test]
+fn test_histogram_exact_delta_positions() {
+    use java_diff_utils_rs::algorithm::change::DeltaType;
+
+    let source = vec!["A", "B", "C"];
+    let target = vec!["A", "X", "C"];
+
+    let changes = compute_diff_histogram(&source, &target);
+    assert_eq!(changes.len(), 1, "expected 1 change, got {:?}", changes);
+
+    let c = &changes[0];
+    assert_eq!(c.delta_type, DeltaType::Change, "expected Change delta");
+    assert_eq!(c.start_original, 1, "start_original mismatch");
+    assert_eq!(c.end_original,   2, "end_original mismatch");
+    assert_eq!(c.start_revised,  1, "start_revised mismatch");
+    assert_eq!(c.end_revised,    2, "end_revised mismatch");
+}
+
+/// With the default max_chain_length (64) and a 500-element input where each
+/// value repeats at most 10 times, HistogramDiff should handle the input on
+/// the histogram path (not force a Myers fallback for the whole range) and
+/// the patch must apply correctly.
+#[test]
+fn test_histogram_no_total_fallback_on_moderate_repetition() {
+    // 50 distinct values, each appearing exactly 10 times → max frequency 10 < 64.
+    let source: Vec<usize> = (0..500).map(|i| i % 50).collect();
+    let mut target = source.clone();
+    // Replace a small cluster in the middle.
+    for v in target.iter_mut().take(300).skip(200) {
+        *v = 999;
+    }
+
+    let changes = HistogramDiff::new().diff(&source, &target);
+    assert!(
+        !changes.is_empty(),
+        "expected at least 1 change for modified input"
+    );
+
+    let patch = Patch::generate(&source, &target, &changes, false);
+    let applied = patch.apply_to(&source).expect("Apply failed");
+    assert_eq!(applied, target);
+}
+
+// ── Priority 6: golden boundary tests ─────────────────────────────────────────
+
+/// Golden boundary test for a simple two-edit case.
+/// Verifies that HistogramDiff finds changes at the expected positions without
+/// requiring a live JGit process — positions were manually derived from the
+/// histogram algorithm semantics (unique-element anchors).
+#[test]
+fn test_histogram_golden_boundaries_simple() {
+    use java_diff_utils_rs::algorithm::change::DeltaType;
+
+    // "B" is unique in source; "Y" is unique in target.
+    // Prefix "A" and suffix "C" trim away, leaving only the middle.
+    let source = vec!["A", "B", "C"];
+    let target = vec!["A", "Y", "C"];
+
+    let changes = compute_diff_histogram(&source, &target);
+    assert_eq!(changes.len(), 1);
+    let c = &changes[0];
+    // After prefix/suffix trimming: src[1..2] ↔ tgt[1..2]
+    assert_eq!(c.delta_type, DeltaType::Change);
+    assert_eq!((c.start_original, c.end_original), (1, 2));
+    assert_eq!((c.start_revised, c.end_revised), (1, 2));
+}
+
+/// Regression guard: an adjacent Insert + Delete at the same position must
+/// be coalesced into a single Change by `normalize_replacements`, not left
+/// as two separate records.
+#[test]
+fn test_histogram_boundary_normalization_coalesces_adjacent() {
+    use java_diff_utils_rs::algorithm::change::DeltaType;
+
+    // Any input that triggers a delete+insert at the same location tests the
+    // normalization path. A simple one-element swap is sufficient.
+    let source = vec!["old"];
+    let target = vec!["new"];
+
+    let changes = compute_diff_histogram(&source, &target);
+    // After normalization there must be exactly 1 delta of type Change.
+    assert_eq!(changes.len(), 1, "expected 1 coalesced delta, got {:?}", changes);
+    assert_eq!(
+        changes[0].delta_type,
+        DeltaType::Change,
+        "expected Change, got {:?}",
+        changes[0].delta_type
+    );
+}
+

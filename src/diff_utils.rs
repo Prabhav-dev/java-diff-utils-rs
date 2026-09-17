@@ -21,6 +21,21 @@ impl DiffUtils {
         }
     }
 
+    /// Computes the diff between `original` and `revised` using the default algorithm.
+    ///
+    /// # Algorithm
+    ///
+    /// The default algorithm is [`HistogramDiff`](crate::algorithm::HistogramDiff).
+    /// It uses low-occurrence element anchors to split the sequence recursively,
+    /// and falls back to Myers' linear-space algorithm for high-entropy regions.
+    ///
+    /// # Performance
+    ///
+    /// Histogram is generally faster than Myers for files with repeated structure
+    /// (e.g. source code), but Myers can be faster for high-entropy inputs where
+    /// all elements are unique. For workloads where you know the input is high-entropy,
+    /// call [`diff_with_algorithm`](Self::diff_with_algorithm) and pass a
+    /// [`MyersDiff`](crate::algorithm::myers::myers::MyersDiff) instance explicitly.
     pub fn diff<T>(
         original: &[T],
         revised: &[T],
@@ -55,6 +70,19 @@ impl DiffUtils {
         Self::diff(&original, &revised, progress)
     }
 
+    /// Computes the diff with an optional custom element equality predicate.
+    ///
+    /// # Note
+    ///
+    /// When `equalizer` is `Some`, this method uses [`MyersDiff`] rather than the
+    /// HistogramDiff default, because HistogramDiff's custom-equalizer path requires
+    /// `T: 'static` which is not always available. If you need HistogramDiff with a
+    /// custom equalizer, construct one directly:
+    ///
+    /// ```ignore
+    /// let algo = HistogramDiff::new().with_equalizer(|a, b| a.eq_ignore_ascii_case(b));
+    /// DiffUtils::diff_with_algorithm(&source, &target, &algo, None, false);
+    /// ```
     pub fn diff_with_equalizer<T, F>(source: &[T], target: &[T], equalizer: Option<F>) -> Patch<T>
     where
         T: PartialEq + Clone + 'static,
