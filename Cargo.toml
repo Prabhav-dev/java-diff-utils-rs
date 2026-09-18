@@ -1,6 +1,6 @@
 [package]
 name = "java-diff-utils-rs"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.5"
 edition = "2021"
 description = "Experimental Rust port of the core diffing and patching behavior of java-diff-utils"
 license = "Apache-2.0"

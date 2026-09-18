@@ -1,5 +1,21 @@
 # Changes
 
+## 0.1.0-alpha.5
+
+### Changed
+
+- Add hybrid Histogram indexing with hash lookup and occurrence-position vectors.
+- Require `Eq + Hash` for the default Histogram-backed `DiffUtils` path.
+- Dispatch high-entropy and low-entropy large regions to Myers when Histogram indexing would add unnecessary overhead.
+- Apply the configured maximum occurrence-chain limit consistently before anchor selection.
+- Extend the standalone tester with clustered and repeated workload verification.
+
+### Tests and Benchmarks
+
+- Full `cargo test` suite passes with zero failures.
+- Standalone tester correctness and stress catalogue passes all 11 workloads.
+- Clustered and repeated workloads were verified against Myers in release mode.
+
 ## 0.1.0-alpha.2
 
 ### Changed

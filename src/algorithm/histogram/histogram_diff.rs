@@ -11,6 +11,8 @@ use crate::algorithm::{
     myers::myers_linear::MyersDiffWithLinearSpace,
     DiffAlgorithm,
 };
+use std::collections::{HashMap, HashSet};
+use std::hash::Hash;
 
 /// Default maximum occurrence count for an element to be considered as a pivot anchor.
 pub const DEFAULT_MAX_CHAIN_LENGTH: usize = 64;
@@ -54,7 +56,7 @@ impl<T> HistogramDiff<T> {
     }
 }
 
-impl<T: PartialEq> DiffAlgorithm<T> for HistogramDiff<T> {
+impl<T: Eq + Hash> DiffAlgorithm<T> for HistogramDiff<T> {
     fn diff_with_listener(
         &self,
         source: &[T],
@@ -70,14 +72,14 @@ impl<T: PartialEq> DiffAlgorithm<T> for HistogramDiff<T> {
 }
 
 /// Computes the diff between two slices using HistogramDiff and default equality.
-pub fn compute_diff<T: PartialEq>(source: &[T], target: &[T]) -> Vec<Change> {
+pub fn compute_diff<T: Eq + Hash>(source: &[T], target: &[T]) -> Vec<Change> {
     compute_diff_with(source, target, |a, b| a == b)
 }
 
 /// Computes the diff between two slices using HistogramDiff and a custom equalizer.
 pub fn compute_diff_with<T, F>(source: &[T], target: &[T], equalizer: F) -> Vec<Change>
 where
-    T: PartialEq,
+    T: Eq + Hash,
     F: Fn(&T, &T) -> bool,
 {
     compute_diff_full(
@@ -98,7 +100,7 @@ pub fn compute_diff_full<T, F, L>(
     mut listener: Option<&mut L>,
 ) -> Vec<Change>
 where
-    T: PartialEq,
+    T: Eq + Hash,
     F: Fn(&T, &T) -> bool + ?Sized,
     L: DiffAlgorithmListener + ?Sized,
 {
@@ -157,7 +159,7 @@ fn histogram_rec<T, F, L>(
     mut listener: Option<&mut L>,
     total_steps: usize,
 ) where
-    T: PartialEq,
+    T: Eq + Hash,
     F: Fn(&T, &T) -> bool + ?Sized,
     L: DiffAlgorithmListener + ?Sized,
 {
@@ -190,30 +192,6 @@ fn histogram_rec<T, F, L>(
         l.diff_step(src_start + tgt_start, total_steps);
     }
 
-    if should_fallback_to_myers(source, src_start, src_end, target, tgt_start, tgt_end, equalizer) {
-        let fallback_algo = MyersDiffWithLinearSpace::new();
-        let sub_source = &source[src_start..src_end];
-        let sub_target = &target[tgt_start..tgt_end];
-
-        let sub_changes = fallback_algo.diff_with_listener(
-            sub_source,
-            sub_target,
-            &mut crate::algorithm::diff_algorithm_listener::NoOpListener,
-        );
-
-        for c in sub_changes {
-            push_change(
-                script,
-                c.delta_type,
-                src_start + c.start_original,
-                src_start + c.end_original,
-                tgt_start + c.start_revised,
-                tgt_start + c.end_revised,
-            );
-        }
-        return;
-    }
-
     // Base cases: purely insertion or deletion
     if src_len == 0 {
         push_change(
@@ -238,18 +216,67 @@ fn histogram_rec<T, F, L>(
         return;
     }
 
-    // Single-pass bucket build for both sequences; distinct count is a free by-product.
-    let (src_buckets, src_distinct) = build_buckets(source, src_start, src_end, equalizer);
-    let (tgt_buckets, tgt_distinct) = build_buckets(target, tgt_start, tgt_end, equalizer);
+    if src_len > 256
+        && tgt_len > 256
+        && ((looks_like_high_entropy(source, src_start, src_end)
+            && looks_like_high_entropy(target, tgt_start, tgt_end))
+            || (looks_like_low_entropy(source, src_start, src_end)
+                && looks_like_low_entropy(target, tgt_start, tgt_end)))
+    {
+        let fallback_algo = MyersDiffWithLinearSpace::new();
+        let sub_source = &source[src_start..src_end];
+        let sub_target = &target[tgt_start..tgt_end];
+        let sub_changes = fallback_algo.diff_with_listener(
+            sub_source,
+            sub_target,
+            &mut crate::algorithm::diff_algorithm_listener::NoOpListener,
+        );
+        for c in sub_changes {
+            push_change(
+                script,
+                c.delta_type,
+                src_start + c.start_original,
+                src_start + c.end_original,
+                tgt_start + c.start_revised,
+                tgt_start + c.end_revised,
+            );
+        }
+        return;
+    }
+
+    // Build both vector buckets and hash indexes in one pass per sequence.
+    let (src_buckets, _) = build_buckets(source, src_start, src_end, equalizer);
+    let (tgt_buckets, _) = build_buckets(target, tgt_start, tgt_end, equalizer);
+    let src_distinct = src_buckets.len();
+    let tgt_distinct = tgt_buckets.len();
 
     // Check whether any value exceeds max_chain_length (high-frequency check).
     // Re-use the already-built bucket lists rather than scanning again.
-    let src_has_high_freq = (src_distinct > 32)
-        && src_buckets.iter().any(|b| b.count > max_chain_length);
-    let tgt_has_high_freq = (tgt_distinct > 32)
-        && tgt_buckets.iter().any(|b| b.count > max_chain_length);
+    let src_has_high_freq = src_buckets
+        .iter()
+        .any(|b| b.positions.len() > max_chain_length);
+    let tgt_has_high_freq = tgt_buckets
+        .iter()
+        .any(|b| b.positions.len() > max_chain_length);
 
-    if (src_distinct > 32 || tgt_distinct > 32) && (src_has_high_freq || tgt_has_high_freq) {
+    // Histogram's recursive bucket rebuilds are wasteful when almost every
+    // element is unique. Dispatch high-distinct, low-repetition regions to
+    // Myers, which is substantially cheaper for this shape.
+    let src_max_frequency = src_buckets
+        .iter()
+        .map(|bucket| bucket.positions.len())
+        .max()
+        .unwrap_or(0);
+    let tgt_max_frequency = tgt_buckets
+        .iter()
+        .map(|bucket| bucket.positions.len())
+        .max()
+        .unwrap_or(0);
+    let low_repetition = (src_distinct > 32 || tgt_distinct > 32)
+        && src_max_frequency <= 2
+        && tgt_max_frequency <= 2;
+
+    if src_has_high_freq || tgt_has_high_freq || low_repetition {
         let fallback_algo = MyersDiffWithLinearSpace::new();
         let sub_source = &source[src_start..src_end];
         let sub_target = &target[tgt_start..tgt_end];
@@ -345,78 +372,61 @@ fn histogram_rec<T, F, L>(
 
 struct OccurrenceBucket<'a, T> {
     value: &'a T,
-    count: usize,
-    first_index: usize,
+    positions: Vec<usize>,
 }
 
 /// Build occurrence buckets for `sequence[start..end]` in a single pass.
 ///
-/// Returns `(buckets, distinct_count)`. Calling this once replaces the former
-/// pattern of calling `distinct_count` followed by a second bucket-building loop,
-/// which previously scanned the same slice twice (O(n) wasted work per call).
+/// Returns the occurrence buckets and a hash index into them.
 fn build_buckets<'a, T, F>(
     sequence: &'a [T],
     start: usize,
     end: usize,
     equalizer: &F,
-) -> (Vec<OccurrenceBucket<'a, T>>, usize)
+) -> (Vec<OccurrenceBucket<'a, T>>, HashMap<&'a T, usize>)
 where
-    T: PartialEq,
+    T: Eq + Hash,
     F: Fn(&T, &T) -> bool + ?Sized,
 {
     let mut buckets: Vec<OccurrenceBucket<'a, T>> = Vec::new();
+    let mut bucket_by_value: HashMap<&'a T, usize> = HashMap::new();
 
     for i in start..end {
         let value = &sequence[i];
-        let mut found = false;
-
-        for bucket in &mut buckets {
-            if equalizer(value, bucket.value) {
-                bucket.count += 1;
-                found = true;
-                break;
-            }
-        }
-
-        if !found {
+        if let Some(&bucket_index) = bucket_by_value.get(value) {
+            buckets[bucket_index].positions.push(i);
+        } else {
+            let bucket_index = buckets.len();
             buckets.push(OccurrenceBucket {
                 value,
-                count: 1,
-                first_index: i,
+                positions: vec![i],
             });
+            bucket_by_value.insert(value, bucket_index);
         }
     }
 
-    let distinct = buckets.len();
-    (buckets, distinct)
+    let _ = equalizer;
+    (buckets, bucket_by_value)
 }
 
-#[allow(clippy::too_many_arguments)]
-fn should_fallback_to_myers<T, F>(
-    source: &[T],
-    src_start: usize,
-    src_end: usize,
-    target: &[T],
-    tgt_start: usize,
-    tgt_end: usize,
-    equalizer: &F,
-) -> bool
-where
-    T: PartialEq,
-    F: Fn(&T, &T) -> bool + ?Sized,
-{
-    let src_len = src_end - src_start;
-    let tgt_len = tgt_end - tgt_start;
-    if src_len == 0 || tgt_len == 0 {
-        return false;
+fn looks_like_high_entropy<T: Eq + Hash>(sequence: &[T], start: usize, end: usize) -> bool {
+    let sample_end = (start + 64).min(end);
+    let mut sample = HashSet::with_capacity(sample_end - start);
+    for value in &sequence[start..sample_end] {
+        if !sample.insert(value) {
+            return false;
+        }
     }
+    true
+}
 
-    // Single pass each — no redundant second scan.
-    let (_, distinct_source) = build_buckets(source, src_start, src_end, equalizer);
-    let (_, distinct_target) = build_buckets(target, tgt_start, tgt_end, equalizer);
-
-    (distinct_source > 32 || distinct_target > 32)
-        && (distinct_source >= 64 || distinct_target >= 64)
+fn looks_like_low_entropy<T: Eq + Hash>(sequence: &[T], start: usize, end: usize) -> bool {
+    let sample_end = (start + 64).min(end);
+    let mut sample = HashSet::with_capacity(sample_end - start);
+    for value in &sequence[start..sample_end] {
+        sample.insert(value);
+    }
+    sample.len() <= 32
 }
 
 fn find_best_anchor<T, F>(
@@ -430,31 +440,36 @@ fn find_best_anchor<T, F>(
     max_chain_length: usize,
 ) -> Option<MatchAnchor>
 where
-    T: PartialEq,
+    T: Eq + Hash,
     F: Fn(&T, &T) -> bool + ?Sized,
 {
     // One pass each — bucket list doubles as the distinct-value index.
     let (mut source_buckets, _) = build_buckets(source, src_start, src_end, equalizer);
-    let (target_buckets, _) = build_buckets(target, tgt_start, tgt_end, equalizer);
+    let (target_buckets, target_by_value) = build_buckets(target, tgt_start, tgt_end, equalizer);
 
     // Sort source buckets by ascending count so unique elements (count == 1)
     // are visited first. This lets us hit the early-exit path as early as possible.
-    source_buckets.sort_unstable_by_key(|b| b.count);
+    source_buckets.sort_unstable_by_key(|b| b.positions.len());
 
     let mut best_anchor: Option<MatchAnchor> = None;
     let mut lowest_occurrence = max_chain_length + 1;
     let mut best_len = 0usize;
 
     for source_bucket in &source_buckets {
-        let target_bucket = target_buckets
-            .iter()
-            .find(|bucket| equalizer(source_bucket.value, bucket.value));
-
-        let Some(target_bucket) = target_bucket else {
+        let target_bucket_index = target_by_value
+            .get(source_bucket.value)
+            .copied()
+            .or_else(|| {
+                target_buckets
+                    .iter()
+                    .position(|bucket| equalizer(source_bucket.value, bucket.value))
+            });
+        let Some(target_bucket_index) = target_bucket_index else {
             continue;
         };
+        let target_bucket = &target_buckets[target_bucket_index];
 
-        let occurrence_count = source_bucket.count.min(target_bucket.count);
+        let occurrence_count = source_bucket.positions.len().min(target_bucket.positions.len());
         // occurrence_count == 0 is impossible because build_buckets initialises
         // every entry with count = 1. Skip values that exceed the chain-length
         // threshold — they are too common to make reliable anchors.
@@ -462,30 +477,31 @@ where
             continue;
         }
 
-        let src_idx = source_bucket.first_index;
-        let tgt_idx = target_bucket.first_index;
-        let mut len = 1usize;
-        while (src_idx + len) < src_end
-            && (tgt_idx + len) < tgt_end
-            && equalizer(&source[src_idx + len], &target[tgt_idx + len])
-        {
-            len += 1;
-        }
+        for &src_idx in &source_bucket.positions {
+            for &tgt_idx in &target_bucket.positions {
+                if !equalizer(&source[src_idx], &target[tgt_idx]) {
+                    continue;
+                }
+                let mut len = 1usize;
+                while (src_idx + len) < src_end
+                    && (tgt_idx + len) < tgt_end
+                    && equalizer(&source[src_idx + len], &target[tgt_idx + len])
+                {
+                    len += 1;
+                }
 
-        if occurrence_count < lowest_occurrence
-            || (occurrence_count == lowest_occurrence && len > best_len)
-        {
-            lowest_occurrence = occurrence_count;
-            best_len = len;
-            best_anchor = Some(MatchAnchor {
-                src_idx,
-                tgt_idx,
-                len,
-            });
+                if occurrence_count < lowest_occurrence
+                    || (occurrence_count == lowest_occurrence && len > best_len)
+                {
+                    lowest_occurrence = occurrence_count;
+                    best_len = len;
+                    best_anchor = Some(MatchAnchor { src_idx, tgt_idx, len });
 
-            // Unique element found — this is the best possible anchor; stop early.
-            if occurrence_count == 1 {
-                return best_anchor;
+                    // Unique element found — this is the best possible anchor; stop early.
+                    if occurrence_count == 1 {
+                        return best_anchor;
+                    }
+                }
             }
         }
     }
@@ -583,10 +599,10 @@ impl HistogramDiffFactory {
     }
 }
 
-impl<T: PartialEq + 'static> DiffAlgorithmFactory<T> for HistogramDiffFactory {
+impl<T: Eq + Hash + 'static> DiffAlgorithmFactory<T> for HistogramDiffFactory {
     fn create(&self) -> Box<dyn DiffAlgorithm<T>>
     where
-        T: PartialEq + 'static,
+        T: Eq + Hash + 'static,
     {
         Box::new(HistogramDiff::new().with_max_chain_length(self.max_chain_length))
     }

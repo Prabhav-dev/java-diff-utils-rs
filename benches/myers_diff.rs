@@ -39,6 +39,19 @@ fn make_similar(n: usize) -> (Vec<String>, Vec<String>) {
     (original, revised)
 }
 
+/// Build clustered input: long repeated blocks with a small changed region.
+/// This is the workload where low-occurrence anchors should avoid Myers' broad search.
+fn make_clustered(n: usize) -> (Vec<String>, Vec<String>) {
+    let source: Vec<String> = (0..n)
+        .map(|i| format!("block-{}", (i / 32) % 8))
+        .collect();
+    let mut target = source.clone();
+    for value in target.iter_mut().skip(n / 2).take(32) {
+        *value = "changed-cluster".to_string();
+    }
+    (source, target)
+}
+
 // ── benchmark groups ──────────────────────────────────────────────────────────
 
 /// Benchmarks the public DiffUtils::diff() API path (uses MyersDiffWithLinearSpace by default).
@@ -169,6 +182,27 @@ fn bench_histogram_comparison(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_histogram_clustered(c: &mut Criterion) {
+    let sizes = [1_000, 5_000, 10_000];
+    let mut group = c.benchmark_group("algo_comparison/clustered");
+    group.sample_size(10);
+
+    for &n in &sizes {
+        let (source, target) = make_clustered(n);
+
+        group.bench_with_input(BenchmarkId::new("histogram", n), &n, |b, _| {
+            let algo = HistogramDiff::<String>::new();
+            b.iter(|| black_box(algo.diff(black_box(&source), black_box(&target)).len()))
+        });
+
+        group.bench_with_input(BenchmarkId::new("myers_linear", n), &n, |b, _| {
+            let algo = MyersDiffWithLinearSpace::<String>::default();
+            b.iter(|| black_box(algo.diff(black_box(&source), black_box(&target)).len()))
+        });
+    }
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_public_api_pathological,
@@ -176,5 +210,6 @@ criterion_group!(
     bench_algo_comparison_pathological,
     bench_algo_comparison_similar,
     bench_histogram_comparison,
+    bench_histogram_clustered,
 );
 criterion_main!(benches);

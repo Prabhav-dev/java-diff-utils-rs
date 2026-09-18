@@ -1,6 +1,7 @@
 //! High-level convenience functions for computing diffs, applying patches, and unpatching lists or text.
 
 use std::sync::RwLock;
+use std::hash::Hash;
 
 use crate::algorithm::myers::myers::MyersDiff;
 use crate::algorithm::{DiffAlgorithm, DiffAlgorithmFactory, DiffAlgorithmListener};
@@ -42,7 +43,7 @@ impl DiffUtils {
         progress: Option<&dyn DiffAlgorithmListener>,
     ) -> Patch<T>
     where
-        T: PartialEq + Clone + 'static,
+        T: Eq + Hash + Clone + 'static,
     {
         let algo = Self::get_default_algorithm::<T>();
         Self::diff_with_algorithm(original, revised, algo.as_ref(), progress, false)
@@ -54,7 +55,7 @@ impl DiffUtils {
         include_equal_parts: bool,
     ) -> Patch<T>
     where
-        T: PartialEq + Clone + 'static,
+        T: Eq + Hash + Clone + 'static,
     {
         let algo = Self::get_default_algorithm::<T>();
         Self::diff_with_algorithm(original, revised, algo.as_ref(), None, include_equal_parts)
@@ -150,7 +151,7 @@ impl DiffUtils {
         }
     }
 
-    fn get_default_algorithm<T: PartialEq + Clone + 'static>() -> Box<dyn DiffAlgorithm<T>> {
+    fn get_default_algorithm<T: Eq + Hash + Clone + 'static>() -> Box<dyn DiffAlgorithm<T>> {
         Box::new(crate::algorithm::HistogramDiff::default())
     }
 }
