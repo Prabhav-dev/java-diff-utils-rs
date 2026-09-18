@@ -1,8 +1,8 @@
 [package]
 name = "java-diff-utils-rs"
-version = "0.1.0-alpha.5"
+version = "0.1.0-beta.1"
 edition = "2021"
-description = "Experimental Rust port of the core diffing and patching behavior of java-diff-utils"
+description = "Rust port of the core diffing and patching behavior of java-diff-utils"
 license = "Apache-2.0"
 repository = "https://github.com/Prabhav-dev/java-diff-utils-rs"
 homepage = "https://github.com/Prabhav-dev/java-diff-utils-rs"

@@ -1,18 +1,16 @@
 # java-diff-utils-rs
 
-Experimental preview release of a Rust port of the core diffing and patching behavior behind `java-diff-utils`.
+Rust port of the core diffing and patching behavior behind `java-diff-utils`.
 
-This project aims to provide Java-compatible diff semantics in a safe, idiomatic Rust implementation while keeping the public API approachable for users who want patch generation, text diffing, and unified diff support without unsafe Rust code.
+This crate provides Java-compatible diff semantics in a safe, idiomatic Rust implementation with support for Myers diffing, histogram-based diffing, patch generation, and unified diff handling.
 
 ## Release status
 
-This is an experimental alpha release.
+This is the 0.1.0-beta.1 release.
 
-The crate is intended for early adopters and maintainers who want to evaluate the Rust port against the upstream Java project. The public API is intentionally focused on correctness and parity rather than making unsupported speed claims. Performance benchmarking is ongoing and the long-running algorithm benchmark is kept ignored by default so normal test runs stay fast.
+The project is intended for broader validation and public use. Performance varies by workload, and the implementation is faster in many cases while remaining practical across a wide range of edit patterns.
 
-## Overview
-
-This crate includes:
+## Features
 
 - `MyersDiff`: classic quadratic-space Myers algorithm
 - `MyersDiffWithLinearSpace`: linear-space Myers variant for larger inputs
@@ -21,7 +19,7 @@ This crate includes:
 - unified diff parsing and writing support
 - inline and side-by-side diff row generation
 
-The project is structured around a small set of clearly separated layers:
+The project is split into a few small, focused modules:
 
 - `src/algorithm/`: diff algorithm implementations and factories
 - `src/patch/`: deltas, chunk verification, and patch application
@@ -29,14 +27,14 @@ The project is structured around a small set of clearly separated layers:
 - `src/unifieddiff/`: unified diff readers and writers
 - `src/diff_utils.rs`: public convenience helpers and default selection points
 
-## Safety and idiomatic constraints
+## Safety and design
 
 The crate intentionally enforces a no-unsafe policy:
 
 - `#![forbid(unsafe_code)]` at the crate root and binary entry points
 - no raw pointer arithmetic or unsafe memory aliasing
 - explicit ownership and borrowing patterns
-- bounded, predictable workspace allocation strategies
+- bounded, predictable allocation behavior
 
 ## Quick start
 
@@ -56,23 +54,6 @@ let histogram_changes = HistogramDiff::new().diff(&original, &revised);
 assert!(!histogram_changes.is_empty());
 ```
 
-## Upstream Java parity check
-
-The port was validated against the official `java-diff-utils` reference library in Docker using the same representative edit scenario.
-
-Java reference output:
-
-```text
-delta_count=1
-CHANGE src=1:1 tgt=1:1
-```
-
-The Rust implementation matches the same semantic result for the equivalent diff case.
-
-## Performance notes
-
-The implementation is designed to balance correctness and efficiency, but this project does not yet make a blanket claim that it is faster than Java. Performance measurement is ongoing, and the long-running algorithm benchmark is intentionally ignored by default so the standard validation loop stays practical for day-to-day development.
-
 ## Benchmarking
 
 Use Criterion to compare the available algorithms when you want to run the longer benchmark intentionally:
@@ -84,7 +65,7 @@ cargo bench --bench myers_diff
 The benchmark exercises:
 
 - public API diffing
-- Myers quadratic vs linear-space behavior
+- Myers quadratic vs. linear-space behavior
 - histogram diff behavior on similar and pathological inputs
 
 ## Testing

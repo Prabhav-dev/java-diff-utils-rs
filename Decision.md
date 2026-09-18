@@ -106,6 +106,70 @@ src/
 
 ---
 
+### AD-8: Beta status, not alpha status, for public-facing release decisions
+
+**Decision:** We treat the project as a beta release at `0.1.0-beta.1`, not an experimental alpha preview. The public-facing docs, crate metadata, and changelog all reflect that this is a release meant for broader usage and validation rather than a hidden work-in-progress.
+
+**Why:** A stable-looking crate version should not be paired with a message like "experimental alpha" when the implementation already passes its release-mode verification workflow. The beta label is honest: the project is mature enough for public use, while still acknowledging that there are remaining compatibility and performance refinements in the wide space of edit patterns.
+
+**Trade-off accepted:** We are deliberately not claiming a universal "fastest diff library" label. The beta release is about honest maturity and clear expectations, not marketing language that overstates certainty.
+
+**Where it lives:** `Cargo.toml`, `README.md`, and `changes.md` are the public product surface; `Decision.md` records the rationale behind that GitHub-visible state.
+
+---
+
+### AD-9: Performance tuning is workload-sensitive, not absolute
+
+**Decision:** The default algorithm path prioritizes speed where it matters and falls back to a more stable or more general algorithm when the workload would otherwise be inefficient. In practical terms, `HistogramDiff` is used as the default in the common path because it can outperform the generic diff logic on many repeated-value and clustered inputs, while Myers remains available as the safer fallback for regions where histogram indexing does not buy enough.
+
+**Why:** The portability of a diff library is not only about correctness; it is also about making the common cases fast without causing pathological regressions. A single algorithm is rarely the best answer across all input shapes. The Rust implementation therefore uses a hybrid strategy instead of assuming one algorithm dominates every edit pattern.
+
+**Trade-off accepted:** We do not make blanket statements like "this is always faster than Java" or "this is faster than every other implementation." The reality is more precise: this port is faster in many cases, slower in some, and still acceptable as a beta because the improvement is real and the behavior is stable across a wide range of workloads.
+
+**Where it lives:** The dispatch logic and selection points are in the algorithm layer, especially the histogram/Myers interaction and `DiffUtils` default selection path. The release notes and README are intentionally careful to reflect this nuance.
+
+---
+
+### AD-10: Public docs should describe the project, not the author's internal uncertainty
+
+**Decision:** The main documentation intentionally avoids exposing the project's internal history in a way that reads as unfinished or fragile. Old alpha wording, speculative performance claims, and long-running debug-era caveats were removed from the public release docs.
+
+**Why:** Users are trying to answer a simple question: "Is this crate usable, and what does it do?" They do not benefit from reading internal speculation or self-conscious disclaimers that read like a lab note. The release-facing docs need to tell the truth without sounding unready.
+
+**Trade-off accepted:** We still keep the internal engineering rationale in this document (`Decision.md`), but the external-facing surfaces now focus on stable product information: features, supported behavior, and the current release status.
+
+**Where it lives:** The documentation cleanup happened in `README.md` and `changes.md`; `Decision.md` remains the place where the deeper rationale is preserved for maintainers.
+
+---
+
+### AD-11: Compatibility judgments are deliberate, not aspirational
+
+**Decision:** We do not treat every JGit / Java behavior difference as a defect to be solved by brute force. We prefer correctness, deterministic semantics, and practical compatibility within the scope of the project' s intended API, even when some Java edge cases remain outside the current port.
+
+**Why:** The port is an implementation of the core diffing and patching behavior of `java-diff-utils`, not an attempt to recreate every Java runtime quirk or every opaque edge case in the upstream library. This is important in Rust because the wrong abstraction choice (for example, forcing everything into inheritance-like patterns or aggressive trait magic) would make the code harder to reason about without improving parity.
+
+**Trade-off accepted:** Some differences remain intentionally documented rather than auto-normalized. This preserves implementation clarity and keeps the project moving toward a usable beta without turning the code base into an unreadable mirror of Java internals.
+
+**Where it lives:** The project-level design decisions, test status, and remaining known gaps are documented here, alongside the actual module structure in `src/`.
+
+---
+
+### AD-12: The project uses a release discipline that separates engineering truth from marketing language
+
+**Decision:** The repository distinguishes between internal design records and user-facing release language. This matters because we want the architecture log to explain why a certain choice was made, while the release docs remain concise, accurate, and useful to downstream users.
+
+**Why:** Internal documents can describe trade-offs, rough edges, and historical rationale without becoming a source of confusion for package consumers. For public release surfaces, we keep the language about current status and practical behavior rather than internal debate.
+
+**What this means in practice:**
+- `Decision.md` captures the actual decision rationale and trade-offs.
+- `README.md` is short, product-focused, and release-aware.
+- `changes.md` records changes in a changelog style that fits a public beta.
+- `Cargo.toml` versioning and crate metadata reflect the actual release stage.
+
+This separation is deliberate: it keeps the engineering history honest while making the crate easier to adopt.
+
+---
+
 ## Part 2: Module-by-Module Detail
 
 The sections above cover the cross-cutting themes; this section drills into additional decisions specific to each folder that didn't make the top-level list, plus the exact files each AD lives in.

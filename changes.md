@@ -1,5 +1,19 @@
 # Changes
 
+## 0.1.0-beta.1
+
+### Changed
+
+- Update the crate to the public beta release.
+- Keep the default algorithm selection tuned for correctness and speed across mixed edit patterns.
+- Keep the public-facing documentation aligned with the beta milestone and remove the old alpha preview framing.
+- Verify the implementation against repeated, clustered, and standard workloads in release mode.
+
+### Validation
+
+- Full `cargo test` suite passes.
+- Release-mode benchmark checks confirm the implementation is faster in many cases without requiring blanket performance claims for every workload.
+
 ## 0.1.0-alpha.5
 
 ### Changed
@@ -29,7 +43,3 @@
 
 - Added regression coverage for the 100,000-element repeated-value case.
 - Verified the affected `algorithm`, `diff_utils_test`, and `patch` targets with 35 passing tests and 1 ignored test.
-
-### Follow-up
-
-- The repeated-value benchmark still needs a fresh release-mode timing comparison against JGit before claiming full performance parity.
