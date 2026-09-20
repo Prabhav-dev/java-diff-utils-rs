@@ -6,7 +6,7 @@ This crate provides Java-compatible diff semantics in a safe, idiomatic Rust imp
 
 ## Release status
 
-This is the 0.1.0-beta.1 release.
+This is the 0.1.0-beta.2 release.
 
 The project is intended for broader validation and public use. Performance varies by workload, and the implementation is faster in many cases while remaining practical across a wide range of edit patterns.
 
