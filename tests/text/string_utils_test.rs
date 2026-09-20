@@ -23,5 +23,5 @@ fn test_wrap_text_string_int() {
 #[test]
 #[should_panic(expected = "column width must be positive")]
 fn test_wrap_text_string_int_zero() {
-    StringUtils::wrap_text("test", 0);
+    let _ = StringUtils::wrap_text("test", 0);
 }

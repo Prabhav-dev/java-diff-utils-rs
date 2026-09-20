@@ -13,6 +13,7 @@ pub struct ChangeDelta<T> {
 
 impl<T> ChangeDelta<T> {
     /// Creates a new `ChangeDelta` with the given source and target chunks.
+    #[must_use]
     pub fn new(source: Chunk<T>, target: Chunk<T>) -> Self {
         Self {
             inner: Delta::new(DeltaType::Change, source, target),
@@ -21,24 +22,28 @@ impl<T> ChangeDelta<T> {
 
     /// Returns a reference to the underlying inner [`Delta`].
     #[inline]
+    #[must_use]
     pub fn delta(&self) -> &Delta<T> {
         &self.inner
     }
 
     /// Consumes `self` and returns the inner [`Delta`].
     #[inline]
+    #[must_use]
     pub fn into_delta(self) -> Delta<T> {
         self.inner
     }
 
     /// Returns a reference to the source chunk.
     #[inline]
+    #[must_use]
     pub fn source(&self) -> &Chunk<T> {
         self.inner.source()
     }
 
     /// Returns a reference to the target chunk.
     #[inline]
+    #[must_use]
     pub fn target(&self) -> &Chunk<T> {
         self.inner.target()
     }

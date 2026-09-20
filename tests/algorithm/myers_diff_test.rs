@@ -89,7 +89,7 @@ fn test_diff_myers_example_1_forward_with_listener() {
     for (idx, d) in patch.deltas().iter().enumerate() {
         println!("[{:02}] {:?}", idx, d);
     }
-    println!("Patch String: {}", patch.to_string());
+    println!("Patch String: {patch}");
     println!("==================== END MYERS DEBUG TRACE ====================\n");
 
     // Detailed Assertions with Failure Messages
@@ -110,11 +110,12 @@ fn test_diff_myers_example_1_forward_with_listener() {
     );
 
     let expected_patch_str = "Patch{deltas=[[DeleteDelta, position: 0, lines: [A, B]], [InsertDelta, position: 3, lines: [B]], [DeleteDelta, position: 5, lines: [B]], [InsertDelta, position: 7, lines: [C]]]}";
+    let actual_patch_str = patch.to_string();
     assert_eq!(
-        patch.to_string(),
+        actual_patch_str,
         expected_patch_str,
         "\nPatch string mismatch!\nGot:      {}\nExpected: {}",
-        patch.to_string(),
-        expected_patch_str
+        actual_patch_str,
+        expected_patch_str,
     );
 }

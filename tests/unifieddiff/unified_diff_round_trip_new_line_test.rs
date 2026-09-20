@@ -1,3 +1,5 @@
+#![cfg(not(miri))]
+
 use std::io::Cursor;
 
 use java_diff_utils_rs::unifieddiff::unified_diff_reader::UnifiedDiffReader;

@@ -83,11 +83,13 @@ impl<T> Default for Patch<T> {
 
 impl<T> Patch<T> {
     /// Creates a new empty `Patch`.
+    #[must_use]
     pub fn new() -> Self {
         Self::with_capacity(10)
     }
 
     /// Creates a new empty `Patch` with a pre-allocated delta capacity.
+    #[must_use]
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             deltas: Vec::with_capacity(capacity),
@@ -112,11 +114,13 @@ impl<T> Patch<T> {
     }
 
     /// Returns an immutable slice reference to the deltas.
+    #[must_use]
     pub fn get_deltas(&self) -> &[Delta<T>] {
         &self.deltas
     }
 
     /// Returns a slice reference of deltas contained in this patch.
+    #[must_use]
     pub fn deltas(&self) -> &[Delta<T>] {
         &self.deltas
     }
@@ -157,8 +161,7 @@ impl<T> Patch<T> {
                     handler.process_conflict(valid, delta, target)?;
                 } else {
                     return Err(PatchError::PatchFailed(format!(
-                        "Could not apply patch due to {:?}",
-                        valid
+                        "Could not apply patch due to {valid:?}"
                     )));
                 }
             }
@@ -251,8 +254,7 @@ impl<T> Patch<T> {
 
                     if max_fuzz < required_fuzz {
                         return Err(PatchError::PatchFailed(format!(
-                            "Fuzzy match requires fuzz {}, but maximum is {}",
-                            required_fuzz, max_fuzz
+                            "Fuzzy match requires fuzz {required_fuzz}, but maximum is {max_fuzz}"
                         )));
                     }
                 }
@@ -503,7 +505,7 @@ impl<T: fmt::Display> fmt::Display for Patch<T> {
             if i > 0 {
                 write!(f, ", ")?;
             }
-            write!(f, "{}", d)?;
+            write!(f, "{d}")?;
         }
         write!(f, "]}}")?;
         Ok(())

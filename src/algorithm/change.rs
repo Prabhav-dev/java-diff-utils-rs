@@ -13,6 +13,7 @@ pub struct Change {
 }
 
 impl Change {
+    #[must_use]
     pub fn new(
         delta_type: DeltaType,
         start_original: usize,
@@ -32,14 +33,17 @@ impl Change {
         }
     }
 
+    #[must_use]
     pub fn original_len(&self) -> usize {
         self.end_original - self.start_original
     }
 
+    #[must_use]
     pub fn revised_len(&self) -> usize {
         self.end_revised - self.start_revised
     }
 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.start_original == self.end_original && self.start_revised == self.end_revised
     }

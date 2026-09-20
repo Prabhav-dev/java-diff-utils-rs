@@ -11,6 +11,7 @@ pub struct PathNode {
 }
 
 impl PathNode {
+    #[must_use]
     pub fn new(
         i: usize,
         j: isize,
@@ -27,16 +28,18 @@ impl PathNode {
         }
     }
 
+    #[must_use]
     pub fn fmt_path(arena: &[PathNode], start_idx: usize) -> String {
         format!("{}", PathFormatter { arena, start_idx })
     }
 
     /// Exact port of Java's `PathNode.previousSnake()`:
-    ///   if (isBootstrap()) return null;
-    ///   if (!isSnake() && prev != null) return prev.previousSnake();
+    ///   if (`isBootstrap()`) return null;
+    ///   if (!`isSnake()` && prev != null) return `prev.previousSnake()`;
     ///   return this;
     ///
     /// Called on a node (by index) the same way Java calls `somePrev.previousSnake()`.
+    #[must_use]
     pub fn previous_snake(arena: &[PathNode], idx: usize) -> Option<usize> {
         let node = arena[idx];
         if node.is_bootstrap {

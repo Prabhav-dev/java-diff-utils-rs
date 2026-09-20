@@ -11,6 +11,7 @@ pub struct PatchFailedException {
 
 impl PatchFailedException {
     /// Creates a new `PatchFailedException` with an empty error message.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             message: String::new(),
@@ -26,6 +27,7 @@ impl PatchFailedException {
 
     /// Returns the descriptive message associated with this exception.
     #[inline]
+    #[must_use]
     pub fn message(&self) -> &str {
         &self.message
     }

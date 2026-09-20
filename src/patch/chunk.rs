@@ -15,6 +15,7 @@ pub struct Chunk<T> {
 
 impl<T> Chunk<T> {
     /// Creates a new `Chunk` with a starting position, lines, and optional positions of modified lines.
+    #[must_use]
     pub fn new(position: usize, lines: Vec<T>, change_position: Option<Vec<usize>>) -> Self {
         Self {
             position,
@@ -24,6 +25,7 @@ impl<T> Chunk<T> {
     }
 
     /// Convenience constructor creating a `Chunk` without granular line-change tracking indices.
+    #[must_use]
     pub fn with_lines(position: usize, lines: Vec<T>) -> Self {
         Self::new(position, lines, None)
     }
@@ -66,12 +68,14 @@ impl<T> Chunk<T> {
     }
     /// Returns the zero-based start position of this chunk.
     #[inline]
+    #[must_use]
     pub fn position(&self) -> usize {
         self.position
     }
 
     /// Returns a slice reference to the chunk's lines.
     #[inline]
+    #[must_use]
     pub fn lines(&self) -> &[T] {
         &self.lines
     }
@@ -89,30 +93,35 @@ impl<T> Chunk<T> {
 
     /// Returns an optional slice reference to the change position indices, if present.
     #[inline]
+    #[must_use]
     pub fn change_position(&self) -> Option<&[usize]> {
         self.change_position.as_deref()
     }
 
     /// Returns the number of lines contained in this chunk.
     #[inline]
+    #[must_use]
     pub fn len(&self) -> usize {
         self.lines.len()
     }
 
     /// Alias method for `len` matching common Java/C# diff library APIS.
     #[inline]
+    #[must_use]
     pub fn size(&self) -> usize {
         self.lines.len()
     }
 
     /// Returns `true` if this chunk contains no lines.
     #[inline]
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.lines.is_empty()
     }
 
     /// Returns the zero-based index of the last line in the chunk (if non-empty).
     #[inline]
+    #[must_use]
     pub fn last(&self) -> usize {
         if self.lines.is_empty() {
             self.position

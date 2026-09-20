@@ -1,3 +1,5 @@
+#![allow(clippy::type_complexity)]
+
 //! Factory interface and implementations for constructing diff algorithms.
 
 use super::{Change, DiffAlgorithm};

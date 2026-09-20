@@ -1,5 +1,7 @@
 target/
 Logs/
 final_fixes/
-Tester/
 .vscode/
+Tester/
+fuzz/target/
+fuzz/corpus/

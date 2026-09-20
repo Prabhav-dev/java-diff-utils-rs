@@ -1,3 +1,6 @@
+#![allow(clippy::type_complexity)]
+#![allow(clippy::while_let_loop)]
+
 use super::path_node::PathNode;
 use crate::algorithm::change::Change;
 use crate::algorithm::diff_algorithm_listener::DiffAlgorithmListener;
@@ -11,6 +14,7 @@ pub struct DiffWorkspace {
 }
 
 impl DiffWorkspace {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -32,6 +36,7 @@ impl<T> Default for MyersDiff<T> {
 }
 
 impl<T> MyersDiff<T> {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -228,7 +233,9 @@ where
                 j += 1;
             }
 
-            let final_node_idx = if i != ws.arena[node_idx].i {
+            let final_node_idx = if i == ws.arena[node_idx].i {
+                node_idx
+            } else {
                 let snake_idx = ws.arena.len();
                 ws.arena.push(PathNode {
                     i,
@@ -238,8 +245,6 @@ where
                     prev: Some(node_idx),
                 });
                 snake_idx
-            } else {
-                node_idx
             };
 
             ws.diagonal[kmiddle] = Some(final_node_idx);

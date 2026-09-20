@@ -29,6 +29,7 @@ pub struct UnifiedDiffFile {
 
 impl UnifiedDiffFile {
     /// Constructs a new, empty `UnifiedDiffFile`.
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -47,6 +48,7 @@ impl UnifiedDiffFile {
         }
     }
 
+    #[must_use]
     pub fn diff_command(&self) -> Option<&str> {
         self.diff_command.as_deref()
     }
@@ -55,6 +57,7 @@ impl UnifiedDiffFile {
         self.diff_command = Some(diff_command.into());
     }
 
+    #[must_use]
     pub fn from_file(&self) -> Option<&str> {
         self.from_file.as_deref()
     }
@@ -63,6 +66,7 @@ impl UnifiedDiffFile {
         self.from_file = Some(from_file.into());
     }
 
+    #[must_use]
     pub fn to_file(&self) -> Option<&str> {
         self.to_file.as_deref()
     }
@@ -71,6 +75,7 @@ impl UnifiedDiffFile {
         self.to_file = Some(to_file.into());
     }
 
+    #[must_use]
     pub fn index(&self) -> Option<&str> {
         self.index.as_deref()
     }
@@ -79,6 +84,7 @@ impl UnifiedDiffFile {
         self.index = Some(index.into());
     }
 
+    #[must_use]
     pub fn patch(&self) -> &Patch<String> {
         &self.patch
     }
@@ -91,6 +97,7 @@ impl UnifiedDiffFile {
         self.patch = patch;
     }
 
+    #[must_use]
     pub fn from_timestamp(&self) -> Option<&str> {
         self.from_timestamp.as_deref()
     }
@@ -99,6 +106,7 @@ impl UnifiedDiffFile {
         self.from_timestamp = Some(from_timestamp.into());
     }
 
+    #[must_use]
     pub fn to_timestamp(&self) -> Option<&str> {
         self.to_timestamp.as_deref()
     }
@@ -107,6 +115,7 @@ impl UnifiedDiffFile {
         self.to_timestamp = Some(to_timestamp.into());
     }
 
+    #[must_use]
     pub fn similarity_index(&self) -> Option<i32> {
         self.similarity_index
     }
@@ -115,6 +124,7 @@ impl UnifiedDiffFile {
         self.similarity_index = similarity_index;
     }
 
+    #[must_use]
     pub fn rename_from(&self) -> Option<&str> {
         self.rename_from.as_deref()
     }
@@ -123,6 +133,7 @@ impl UnifiedDiffFile {
         self.rename_from = Some(rename_from.into());
     }
 
+    #[must_use]
     pub fn rename_to(&self) -> Option<&str> {
         self.rename_to.as_deref()
     }
@@ -131,6 +142,7 @@ impl UnifiedDiffFile {
         self.rename_to = Some(rename_to.into());
     }
 
+    #[must_use]
     pub fn copy_from(&self) -> Option<&str> {
         self.copy_from.as_deref()
     }
@@ -139,6 +151,7 @@ impl UnifiedDiffFile {
         self.copy_from = Some(copy_from.into());
     }
 
+    #[must_use]
     pub fn copy_to(&self) -> Option<&str> {
         self.copy_to.as_deref()
     }
@@ -147,6 +160,7 @@ impl UnifiedDiffFile {
         self.copy_to = Some(copy_to.into());
     }
 
+    #[must_use]
     pub fn new_file_mode(&self) -> Option<&str> {
         self.new_file_mode.as_deref()
     }
@@ -155,6 +169,7 @@ impl UnifiedDiffFile {
         self.new_file_mode = Some(new_file_mode.into());
     }
 
+    #[must_use]
     pub fn deleted_file_mode(&self) -> Option<&str> {
         self.deleted_file_mode.as_deref()
     }
@@ -163,6 +178,7 @@ impl UnifiedDiffFile {
         self.deleted_file_mode = Some(deleted_file_mode.into());
     }
 
+    #[must_use]
     pub fn old_mode(&self) -> Option<&str> {
         self.old_mode.as_deref()
     }
@@ -171,6 +187,7 @@ impl UnifiedDiffFile {
         self.old_mode = Some(old_mode.into());
     }
 
+    #[must_use]
     pub fn new_mode(&self) -> Option<&str> {
         self.new_mode.as_deref()
     }
@@ -179,6 +196,7 @@ impl UnifiedDiffFile {
         self.new_mode = Some(new_mode.into());
     }
 
+    #[must_use]
     pub fn binary_added(&self) -> Option<&str> {
         self.binary_added.as_deref()
     }
@@ -187,6 +205,7 @@ impl UnifiedDiffFile {
         self.binary_added = Some(binary_added.into());
     }
 
+    #[must_use]
     pub fn binary_deleted(&self) -> Option<&str> {
         self.binary_deleted.as_deref()
     }
@@ -195,6 +214,7 @@ impl UnifiedDiffFile {
         self.binary_deleted = Some(binary_deleted.into());
     }
 
+    #[must_use]
     pub fn binary_edited(&self) -> Option<&str> {
         self.binary_edited.as_deref()
     }
@@ -203,6 +223,7 @@ impl UnifiedDiffFile {
         self.binary_edited = Some(binary_edited.into());
     }
 
+    #[must_use]
     pub fn is_no_new_line_at_the_end_of_the_file(&self) -> bool {
         self.no_new_line_at_the_end_of_the_file
     }

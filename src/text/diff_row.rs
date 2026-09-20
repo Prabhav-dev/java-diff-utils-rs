@@ -60,6 +60,7 @@ impl DiffRow {
 
     /// Returns the tag.
     #[inline]
+    #[must_use]
     pub fn tag(&self) -> Tag {
         self.tag
     }
@@ -72,12 +73,14 @@ impl DiffRow {
 
     /// Returns a reference to the old line.
     #[inline]
+    #[must_use]
     pub fn old_line(&self) -> &str {
         &self.old_line
     }
 
     /// Returns a reference to the new line.
     #[inline]
+    #[must_use]
     pub fn new_line(&self) -> &str {
         &self.new_line
     }

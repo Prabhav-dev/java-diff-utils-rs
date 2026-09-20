@@ -1,5 +1,7 @@
 //! Writer utility for exporting a `UnifiedDiff` back into standard unified diff format strings or streams.
 
+#![allow(clippy::needless_range_loop)]
+
 use std::io::{self, Write};
 
 use super::unified_diff::UnifiedDiff;
@@ -9,7 +11,7 @@ use crate::patch::delta::Delta;
 pub struct UnifiedDiffWriter;
 
 impl UnifiedDiffWriter {
-    /// Writes a `UnifiedDiff` out to a std::io::Write output stream.
+    /// Writes a `UnifiedDiff` out to a `std::io::Write` output stream.
     pub fn write<W, F>(
         diff: &UnifiedDiff,
         original_lines_provider: F,
@@ -24,7 +26,7 @@ impl UnifiedDiffWriter {
             diff,
             original_lines_provider,
             |line| {
-                let _ = writeln!(writer, "{}", line);
+                let _ = writeln!(writer, "{line}");
             },
             context_size,
         )
@@ -52,18 +54,18 @@ impl UnifiedDiffWriter {
                     writer(cmd);
                 }
                 if let Some(index) = file.index() {
-                    writer(&format!("index {}", index));
+                    writer(&format!("index {index}"));
                 }
 
                 let from_file_str = match file.from_file() {
                     None => "/dev/null",
-                    Some(f) if f.is_empty() => "/dev/null",
+                    Some("") => "/dev/null",
                     Some(f) => f,
                 };
-                writer(&format!("--- {}", from_file_str));
+                writer(&format!("--- {from_file_str}"));
 
                 if let Some(to_file) = file.to_file() {
-                    writer(&format!("+++ {}", to_file));
+                    writer(&format!("+++ {to_file}"));
                 }
 
                 let original_lines = original_lines_provider(file.from_file());
@@ -185,8 +187,7 @@ impl UnifiedDiffWriter {
         };
 
         writer(&format!(
-            "@@ -{},{} +{},{} @@",
-            orig_start, orig_total, rev_start, rev_total
+            "@@ -{orig_start},{orig_total} +{rev_start},{rev_total} @@"
         ));
 
         for txt in buffer {
@@ -199,10 +200,10 @@ impl UnifiedDiffWriter {
         C: FnMut(&str),
     {
         for line in delta.source().lines() {
-            writer(&format!("-{}", line));
+            writer(&format!("-{line}"));
         }
         for line in delta.target().lines() {
-            writer(&format!("+{}", line));
+            writer(&format!("+{line}"));
         }
     }
 }

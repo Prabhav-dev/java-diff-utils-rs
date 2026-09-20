@@ -1,3 +1,5 @@
+#![cfg(not(miri))]
+
 use regex::Regex;
 use std::fs::File;
 use std::io::BufReader;
@@ -95,8 +97,8 @@ fn test_simple_parse2() {
     assert_eq!(file1.patch().deltas().len(), 3);
 
     let first = &file1.patch().deltas()[0];
-    assert!(first.source().lines().len() > 0);
-    assert!(first.target().lines().len() > 0);
+    assert!(!first.source().lines().is_empty());
+    assert!(!first.target().lines().is_empty());
 
     assert_eq!(diff.tail(), Some("2.17.1.windows.2\n"));
 }
@@ -116,8 +118,8 @@ fn test_parse_issue_201() {
     assert_eq!(file1.patch().deltas().len(), 3);
 
     let first = &file1.patch().deltas()[0];
-    assert!(first.source().lines().len() > 0);
-    assert!(first.target().lines().len() > 0);
+    assert!(!first.source().lines().is_empty());
+    assert!(!first.target().lines().is_empty());
 
     assert_eq!(diff.tail(), Some("2.17.1.windows.2\n"));
 }
@@ -385,21 +387,21 @@ fn test_parse_issue_117() {
     let file0 = &diff.files()[0];
     let delta0 = &file0.patch().deltas()[0];
     assert_eq!(
-        delta0.source().change_position().as_deref(),
+        delta0.source().change_position(),
         Some(&vec![24, 27][..])
     );
     assert_eq!(
-        delta0.target().change_position().as_deref(),
+        delta0.target().change_position(),
         Some(&vec![24, 27][..])
     );
 
     let delta1 = &file0.patch().deltas()[1];
     assert_eq!(
-        delta1.source().change_position().as_deref(),
+        delta1.source().change_position(),
         Some(&vec![64][..])
     );
     assert_eq!(
-        delta1.target().change_position().as_deref(),
+        delta1.target().change_position(),
         Some(&vec![64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74][..])
     );
 }

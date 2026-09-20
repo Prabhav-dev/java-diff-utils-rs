@@ -8,6 +8,7 @@ fn file_to_lines(filename: &str) -> io::Result<Vec<String>> {
     Ok(content.lines().map(String::from).collect())
 }
 
+#[cfg(not(miri))]
 #[test]
 fn test_generate_original_and_diff() {
     let orig_lines =
@@ -27,6 +28,7 @@ fn test_generate_original_and_diff() {
     println!("{output}");
 }
 
+#[cfg(not(miri))]
 #[test]
 fn test_generate_original_and_diff_first_line_change() {
     let orig_lines = file_to_lines("tests/fixtures/issue_170_original.txt")

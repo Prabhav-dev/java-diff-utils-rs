@@ -189,6 +189,7 @@ fn test_histogram_repeated_values_coalesce_like_jgit() {
     assert_eq!(applied, target);
 }
 
+#[cfg_attr(miri, ignore = "Miri is far too slow on this large low-entropy stress case")]
 #[test]
 fn test_histogram_large_low_entropy_repeated_input_matches_jgit_shape() {
     let mut source = Vec::new();
@@ -200,8 +201,8 @@ fn test_histogram_large_low_entropy_repeated_input_matches_jgit_shape() {
         target.push(value);
     }
 
-    target.splice(10_000..10_020, std::iter::repeat(31).take(20));
-    target.splice(50_000..50_000, std::iter::repeat(41).take(30));
+    target.splice(10_000..10_020, std::iter::repeat_n(31, 20));
+    target.splice(50_000..50_000, std::iter::repeat_n(41, 30));
 
     let changes = HistogramDiff::new().diff(&source, &target);
     assert!(changes.len() <= 2, "expected JGit-like coalescing for low-entropy repeated data, got {} changes: {:?}", changes.len(), changes);

@@ -28,16 +28,19 @@ pub type InlineDeltaMergerFn =
     Arc<dyn Fn(&InlineDeltaMergeInfo<String>) -> Vec<Delta<String>> + Send + Sync>;
 
 /// Adjusts whitespace in a string by collapsing consecutive whitespaces into a single space.
+#[must_use]
 pub fn adjust_whitespace(raw: &str) -> String {
     WHITESPACE_RE.replace_all(raw.trim(), " ").to_string()
 }
 
 /// Default equalizer checking strict string equality.
+#[must_use]
 pub fn default_equalizer() -> EqualizerFn {
     Arc::new(|orig, rev| orig == rev)
 }
 
 /// Equalizer ignoring whitespace differences.
+#[must_use]
 pub fn ignore_whitespace_equalizer() -> EqualizerFn {
     Arc::new(|orig, rev| adjust_whitespace(orig) == adjust_whitespace(rev))
 }
@@ -48,21 +51,25 @@ pub fn html_line_normalizer() -> StringTransformFn {
 }
 
 /// Character-by-character splitter.
+#[must_use]
 pub fn splitter_by_character() -> SplitterFn {
     Arc::new(|line| line.chars().map(|c| c.to_string()).collect())
 }
 
 /// Word-by-word splitter.
+#[must_use]
 pub fn splitter_by_word() -> SplitterFn {
     Arc::new(|line| split_string_preserve_delimiter(line, &SPLIT_BY_WORD_PATTERN))
 }
 
 /// Default inline delta merger returning unmodified deltas.
+#[must_use]
 pub fn default_inline_delta_merger() -> InlineDeltaMergerFn {
     Arc::new(|info: &InlineDeltaMergeInfo<String>| info.deltas().to_vec())
 }
 
 /// Whitespace equalities inline delta merger.
+#[must_use]
 pub fn whitespace_equalities_merger() -> InlineDeltaMergerFn {
     Arc::new(move |info| {
         DeltaMergeUtils::merge_inline_deltas(info, move |equalities: &[String]| {
@@ -74,6 +81,7 @@ pub fn whitespace_equalities_merger() -> InlineDeltaMergerFn {
 }
 
 /// Helper function to split a string while preserving matched delimiters.
+#[must_use]
 pub fn split_string_preserve_delimiter(str_input: &str, pattern: &Regex) -> Vec<String> {
     let mut list = Vec::new();
     let mut pos = 0;
@@ -174,21 +182,25 @@ pub struct DiffRowGenerator {
 
 impl DiffRowGenerator {
     /// Creates a builder to configure a `DiffRowGenerator`.
+    #[must_use]
     pub fn create() -> Builder {
         Builder::new()
     }
 
     /// Helper to forward delimiter splitting.
+    #[must_use]
     pub fn split_string_preserve_delimiter(str_input: &str, pattern: &Regex) -> Vec<String> {
         split_string_preserve_delimiter(str_input, pattern)
     }
 
     /// Returns whether whitespace differences are ignored.
+    #[must_use]
     pub fn ignore_white_spaces(&self) -> bool {
         self.ignore_white_spaces
     }
 
     /// Generates `DiffRow` items comparing two string sequences.
+    #[must_use]
     pub fn generate_diff_rows(&self, original: &[String], revised: &[String]) -> Vec<DiffRow> {
         let mut patch = crate::diff_utils::DiffUtils::diff_with_equalizer(
             original,
@@ -316,8 +328,8 @@ impl DiffRowGenerator {
                 } else {
                     let max_size = orig.lines().len().max(rev.lines().len());
                     for j in 0..max_size {
-                        let orig_line = orig.lines().get(j).map(|s| s.as_str()).unwrap_or("");
-                        let rev_line = rev.lines().get(j).map(|s| s.as_str()).unwrap_or("");
+                        let orig_line = orig.lines().get(j).map_or("", std::string::String::as_str);
+                        let rev_line = rev.lines().get(j).map_or("", std::string::String::as_str);
                         diff_rows.push(self.build_diff_row(Tag::Change, orig_line, rev_line));
                     }
                 }
@@ -423,6 +435,7 @@ impl DiffRowGenerator {
         )
     }
 
+    #[must_use]
     pub fn normalize_lines(&self, list: &[String]) -> Vec<String> {
         if self.report_lines_unchanged {
             list.to_vec()
@@ -574,16 +587,16 @@ impl DiffRowGenerator {
         let rev_result: String = rev_list.concat();
 
         let mut original_split: Vec<String> =
-            orig_result.split('\n').map(|s| s.to_string()).collect();
+            orig_result.split('\n').map(std::string::ToString::to_string).collect();
         let mut revised_split: Vec<String> =
-            rev_result.split('\n').map(|s| s.to_string()).collect();
+            rev_result.split('\n').map(std::string::ToString::to_string).collect();
 
         while original_split.len() > orig.len()
-            && original_split.last().is_some_and(|s| s.is_empty())
+            && original_split.last().is_some_and(std::string::String::is_empty)
         {
             original_split.pop();
         }
-        while revised_split.len() > rev.len() && revised_split.last().is_some_and(|s| s.is_empty())
+        while revised_split.len() > rev.len() && revised_split.last().is_some_and(std::string::String::is_empty)
         {
             revised_split.pop();
         }
@@ -592,8 +605,8 @@ impl DiffRowGenerator {
         let mut diff_rows = Vec::new();
 
         for j in 0..max_lines {
-            let orig_line = original_split.get(j).map(|s| s.as_str()).unwrap_or("");
-            let rev_line = revised_split.get(j).map(|s| s.as_str()).unwrap_or("");
+            let orig_line = original_split.get(j).map_or("", std::string::String::as_str);
+            let rev_line = revised_split.get(j).map_or("", std::string::String::as_str);
             diff_rows.push(self.build_diff_row_without_normalizing(
                 Tag::Change,
                 orig_line,
@@ -643,6 +656,7 @@ pub struct Builder {
 
 impl Builder {
     /// Creates a new builder with default settings.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             show_inline_diffs: false,
@@ -675,16 +689,19 @@ impl Builder {
         }
     }
 
+    #[must_use]
     pub fn show_inline_diffs(mut self, val: bool) -> Self {
         self.show_inline_diffs = val;
         self
     }
 
+    #[must_use]
     pub fn ignore_white_spaces(mut self, val: bool) -> Self {
         self.ignore_white_spaces = val;
         self
     }
 
+    #[must_use]
     pub fn report_lines_unchanged(mut self, val: bool) -> Self {
         self.report_lines_unchanged = val;
         self
@@ -738,21 +755,25 @@ impl Builder {
         self
     }
 
+    #[must_use]
     pub fn column_width(mut self, width: usize) -> Self {
         self.column_width = width;
         self
     }
 
+    #[must_use]
     pub fn merge_original_revised(mut self, merge: bool) -> Self {
         self.merge_original_revised = merge;
         self
     }
 
+    #[must_use]
     pub fn decompress_deltas(mut self, decompress: bool) -> Self {
         self.decompress_deltas = decompress;
         self
     }
 
+    #[must_use]
     pub fn inline_diff_by_word(mut self, inline_diff_by_word: bool) -> Self {
         self.inline_diff_splitter = if inline_diff_by_word {
             splitter_by_word()
@@ -786,6 +807,7 @@ impl Builder {
         self
     }
 
+    #[must_use]
     pub fn replace_original_linefeed_in_changes_with_spaces(mut self, replace: bool) -> Self {
         self.replace_original_linefeed_in_changes_with_spaces = replace;
         self
@@ -804,6 +826,7 @@ impl Builder {
         self
     }
 
+    #[must_use]
     pub fn build(self) -> DiffRowGenerator {
         let equalizer = match self.equalizer {
             Some(eq) => eq,

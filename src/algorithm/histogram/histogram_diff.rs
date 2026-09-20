@@ -1,8 +1,12 @@
 //! Histogram diff algorithm (Patience / low-occurrence anchor based diff).
 //!
-//! Ported to match the behavior of JGit / `java-diff-utils` `HistogramDiff`.
+//! Ported to match the behavior of `JGit` / `java-diff-utils` `HistogramDiff`.
 //! This algorithm selects elements with low occurrence counts as anchors to split sequences
 //! recursively, falling back to Myers' algorithm when no low-occurrence anchors remain.
+
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::type_complexity)]
 
 use crate::algorithm::{
     change::{Change, DeltaType},
@@ -34,6 +38,7 @@ impl<T> Default for HistogramDiff<T> {
 
 impl<T> HistogramDiff<T> {
     /// Creates a new `HistogramDiff` with default max chain length (64).
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -71,12 +76,12 @@ impl<T: Eq + Hash> DiffAlgorithm<T> for HistogramDiff<T> {
     }
 }
 
-/// Computes the diff between two slices using HistogramDiff and default equality.
+/// Computes the diff between two slices using `HistogramDiff` and default equality.
 pub fn compute_diff<T: Eq + Hash>(source: &[T], target: &[T]) -> Vec<Change> {
     compute_diff_with(source, target, |a, b| a == b)
 }
 
-/// Computes the diff between two slices using HistogramDiff and a custom equalizer.
+/// Computes the diff between two slices using `HistogramDiff` and a custom equalizer.
 pub fn compute_diff_with<T, F>(source: &[T], target: &[T], equalizer: F) -> Vec<Change>
 where
     T: Eq + Hash,
@@ -588,12 +593,14 @@ pub struct HistogramDiffFactory {
 }
 
 impl HistogramDiffFactory {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             max_chain_length: DEFAULT_MAX_CHAIN_LENGTH,
         }
     }
 
+    #[must_use]
     pub fn with_max_chain_length(max_chain_length: usize) -> Self {
         Self { max_chain_length }
     }

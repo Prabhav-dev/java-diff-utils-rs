@@ -66,8 +66,8 @@ impl DiffUtils {
         target_text: &str,
         progress: Option<&dyn DiffAlgorithmListener>,
     ) -> Patch<String> {
-        let original: Vec<String> = source_text.lines().map(|s| s.to_string()).collect();
-        let revised: Vec<String> = target_text.lines().map(|s| s.to_string()).collect();
+        let original: Vec<String> = source_text.lines().map(str::to_string).collect();
+        let revised: Vec<String> = target_text.lines().map(str::to_string).collect();
         Self::diff(&original, &revised, progress)
     }
 
@@ -76,8 +76,8 @@ impl DiffUtils {
     /// # Note
     ///
     /// When `equalizer` is `Some`, this method uses [`MyersDiff`] rather than the
-    /// HistogramDiff default, because HistogramDiff's custom-equalizer path requires
-    /// `T: 'static` which is not always available. If you need HistogramDiff with a
+    /// `HistogramDiff` default, because `HistogramDiff`'s custom-equalizer path requires
+    /// `T: 'static` which is not always available. If you need `HistogramDiff` with a
     /// custom equalizer, construct one directly:
     ///
     /// ```ignore
@@ -112,6 +112,7 @@ impl DiffUtils {
         Patch::generate(original, revised, &deltas, include_equal_parts)
     }
 
+    #[must_use]
     pub fn diff_inline(original: &str, revised: &str) -> Patch<String> {
         let orig_list: Vec<String> = original.chars().map(|c| c.to_string()).collect();
         let rev_list: Vec<String> = revised.chars().map(|c| c.to_string()).collect();

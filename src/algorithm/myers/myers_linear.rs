@@ -1,4 +1,8 @@
 //! Eugene Myers linear space diff algorithm with O(N) space complexity.
+
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::type_complexity)]
+
 use crate::algorithm::{
     change::{Change, DeltaType},
     diff_algorithm_listener::DiffAlgorithmListener,
@@ -24,6 +28,7 @@ impl<T> Default for MyersDiffWithLinearSpace<T> {
 }
 
 impl<T> MyersDiffWithLinearSpace<T> {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -62,6 +67,7 @@ pub struct LinearWorkspace {
 }
 
 impl LinearWorkspace {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }

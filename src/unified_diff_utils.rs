@@ -1,5 +1,8 @@
 //! Utilities for generating and parsing single-file Unified Diffs.
 
+#![allow(clippy::if_same_then_else)]
+#![allow(clippy::needless_range_loop)]
+
 use regex::Regex;
 use std::collections::HashMap;
 
@@ -16,6 +19,7 @@ pub struct UnifiedDiffUtils;
 
 impl UnifiedDiffUtils {
     /// Parses a sequence of unified diff lines and returns a `Patch<String>`.
+    #[must_use]
     pub fn parse_unified_diff(diff: &[String]) -> Patch<String> {
         let chunk_regex =
             Regex::new(r"^@@\s+-(\d+)(?:,(\d+))?\s+\+(\d+)(?:,(\d+))?\s+@@.*$").unwrap();
@@ -119,6 +123,7 @@ impl UnifiedDiffUtils {
     }
 
     /// Generates unified diff output string lines from a given `Patch`.
+    #[must_use]
     pub fn generate_unified_diff(
         original_file_name: Option<&str>,
         revised_file_name: Option<&str>,
@@ -242,8 +247,7 @@ impl UnifiedDiffUtils {
         };
 
         let header = format!(
-            "@@ -{},{} +{},{} @@",
-            orig_start, orig_total, rev_start, rev_total
+            "@@ -{orig_start},{orig_total} +{rev_start},{rev_total} @@"
         );
         buffer.insert(0, header);
 
@@ -253,15 +257,16 @@ impl UnifiedDiffUtils {
     fn get_delta_text(delta: &Delta<String>) -> Vec<String> {
         let mut buffer = Vec::new();
         for line in delta.source().lines() {
-            buffer.push(format!("-{}", line));
+            buffer.push(format!("-{line}"));
         }
         for line in delta.target().lines() {
-            buffer.push(format!("+{}", line));
+            buffer.push(format!("+{line}"));
         }
         buffer
     }
 
     /// Merges diff indicators into original file text (useful for visual diff applications).
+    #[must_use]
     pub fn generate_original_and_diff(
         original: &[String],
         revised: &[String],
@@ -276,15 +281,15 @@ impl UnifiedDiffUtils {
             Self::generate_unified_diff(Some(orig_name), Some(rev_name), original, &patch, 0);
 
         if unified_diff.is_empty() {
-            unified_diff.push(format!("--- {}", orig_name));
-            unified_diff.push(format!("+++ {}", rev_name));
+            unified_diff.push(format!("--- {orig_name}"));
+            unified_diff.push(format!("+++ {rev_name}"));
             unified_diff.push("@@ -0,0 +0,0 @@".to_string());
         } else if unified_diff.len() >= 3 && !unified_diff[2].contains("@@ -1,") {
             unified_diff.insert(2, "@@ -0,0 +0,0 @@".to_string());
         }
 
         let original_with_prefix: Vec<String> =
-            original.iter().map(|v| format!(" {}", v)).collect();
+            original.iter().map(|v| format!(" {v}")).collect();
         Self::insert_orig(&original_with_prefix, &unified_diff)
     }
 
@@ -329,7 +334,7 @@ impl UnifiedDiffUtils {
             if let Some(n_simb) = nex_simb {
                 let nex_map = Self::get_row_map(n_simb);
                 let mut start = 0usize;
-                if map.get("orgRow").cloned().unwrap_or(0) != 0 {
+                if map.get("orgRow").copied().unwrap_or(0) != 0 {
                     start = (map["orgRow"] + map["orgDel"]).wrapping_sub(1);
                 }
                 let end = nex_map["revRow"].saturating_sub(2);

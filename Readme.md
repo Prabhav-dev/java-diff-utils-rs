@@ -78,6 +78,17 @@ The standard project verification command is:
 cargo test --quiet
 ```
 
+### Miri validation
+
+The project includes Miri-specific exclusions for file-system fixture tests and the large low-entropy / long-running stress cases that are intentionally skipped under Miri because they are not useful in the instrumented runtime and would otherwise fail or stall for reasons unrelated to the diff logic itself.
+
+```bash
+cargo +nightly miri test --target i686-unknown-linux-gnu
+cargo +nightly miri test --target s390x-unknown-linux-gnu
+```
+
+These cross-target Miri checks are included as part of the validation story alongside the host 64-bit `cargo test` pass.
+
 ## License
 
 This project is licensed under the Apache License, Version 2.0.

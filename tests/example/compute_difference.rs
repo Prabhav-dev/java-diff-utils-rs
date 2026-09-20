@@ -6,6 +6,7 @@ use java_diff_utils_rs::diff_utils::DiffUtils;
 const ORIGINAL_PATH: &str = "tests/fixtures/original.txt";
 const REVISED_PATH: &str = "tests/fixtures/revised.txt";
 
+#[cfg(not(miri))]
 #[test]
 fn test_compute_difference() -> Result<(), Box<dyn Error>> {
     let original: Vec<String> = fs::read_to_string(ORIGINAL_PATH)?

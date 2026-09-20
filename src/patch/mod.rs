@@ -1,5 +1,7 @@
 // src/patch/mod.rs
 
+#![allow(clippy::module_inception)]
+
 pub mod change_delta;
 pub mod chunk;
 pub mod conflict_formatter;

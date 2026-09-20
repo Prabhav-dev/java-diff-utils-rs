@@ -1,3 +1,5 @@
+#![allow(clippy::module_inception)]
+
 pub mod myers;
 pub mod myers_linear;
 pub mod path_node;

@@ -1,20 +1,23 @@
 //! Utility functions for text manipulation and wrapping.
 
 // 1. Standalone public functions
+#[must_use]
 pub fn html_entities(str_input: &str) -> String {
     str_input.replace('<', "&lt;").replace('>', "&gt;")
 }
 
 /// Expands tab characters into 4 spaces and HTML-escapes the result,
 /// matching java-diff-utils' `StringUtils.normalize`.
+#[must_use]
 pub fn normalize(str_input: &str) -> String {
     html_entities(&str_input.replace('\t', "    "))
 }
 
 use unicode_segmentation::UnicodeSegmentation;
 
-/// Wraps text to column_width, joining wrapped segments with `<br/>` tags.
-/// A column_width of 0 leaves the line untouched (no wrapping is possible).
+/// Wraps text to `column_width`, joining wrapped segments with `<br/>` tags.
+/// A `column_width` of 0 leaves the line untouched (no wrapping is possible).
+#[must_use]
 pub fn wrap_text(line: &str, column_width: usize) -> String {
     if column_width == 0 {
         return line.to_string();
@@ -36,6 +39,7 @@ pub fn wrap_text(line: &str, column_width: usize) -> String {
     result
 }
 
+#[must_use]
 pub fn wrap_text_list(list: &[String], column_width: usize) -> Vec<String> {
     list.iter().map(|s| wrap_text(s, column_width)).collect()
 }
@@ -44,10 +48,12 @@ pub fn wrap_text_list(list: &[String], column_width: usize) -> Vec<String> {
 pub struct StringUtils;
 
 impl StringUtils {
+    #[must_use]
     pub fn html_entities(str_input: &str) -> String {
         html_entities(str_input)
     }
 
+    #[must_use]
     pub fn normalize(str_input: &str) -> String {
         normalize(str_input)
     }
@@ -55,13 +61,13 @@ impl StringUtils {
     /// Unlike the free `wrap_text` function, this associated method matches
     /// java-diff-utils' `StringUtils.wrapText(String, int)`, which requires a
     /// positive column width and panics otherwise.
+    #[must_use]
     pub fn wrap_text(line: &str, column_width: usize) -> String {
-        if column_width == 0 {
-            panic!("column width must be positive");
-        }
+        assert!(column_width != 0, "column width must be positive");
         wrap_text(line, column_width)
     }
 
+    #[must_use]
     pub fn wrap_text_list(list: &[String], column_width: usize) -> Vec<String> {
         wrap_text_list(list, column_width)
     }

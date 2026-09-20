@@ -1,3 +1,5 @@
+#![cfg(not(miri))]
+
 use java_diff_utils_rs::diff_utils::DiffUtils;
 use java_diff_utils_rs::UnifiedDiffUtils;
 use std::fs::File;
@@ -195,7 +197,7 @@ fn validate_change_position(
 ) {
     let origin_chunk = patch.deltas()[index].source();
     let remove_binding = origin_chunk.change_position();
-    let remove_list = remove_binding.as_deref().unwrap_or_default();
+    let remove_list = remove_binding.unwrap_or_default();
 
     assert_eq!(real_remove_list.len(), remove_list.len());
     for ele in real_remove_list {
@@ -207,7 +209,7 @@ fn validate_change_position(
 
     let target_chunk = patch.deltas()[index].target();
     let add_binding = target_chunk.change_position();
-    let add_list = add_binding.as_deref().unwrap_or_default();
+    let add_list = add_binding.unwrap_or_default();
 
     assert_eq!(real_add_list.len(), add_list.len());
     for ele in real_add_list {

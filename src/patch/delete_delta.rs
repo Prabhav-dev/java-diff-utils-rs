@@ -13,6 +13,7 @@ pub struct DeleteDelta<T> {
 
 impl<T> DeleteDelta<T> {
     /// Creates a new `DeleteDelta` with the given original (source) and revised (target) chunks.
+    #[must_use]
     pub fn new(original: Chunk<T>, revised: Chunk<T>) -> Self {
         Self {
             inner: Delta::new(DeltaType::Delete, original, revised),
@@ -21,24 +22,28 @@ impl<T> DeleteDelta<T> {
 
     /// Returns a reference to the underlying inner [`Delta`].
     #[inline]
+    #[must_use]
     pub fn delta(&self) -> &Delta<T> {
         &self.inner
     }
 
     /// Consumes `self` and returns the inner [`Delta`].
     #[inline]
+    #[must_use]
     pub fn into_delta(self) -> Delta<T> {
         self.inner
     }
 
     /// Returns a reference to the source (original) chunk.
     #[inline]
+    #[must_use]
     pub fn source(&self) -> &Chunk<T> {
         self.inner.source()
     }
 
     /// Returns a reference to the target (revised) chunk.
     #[inline]
+    #[must_use]
     pub fn target(&self) -> &Chunk<T> {
         self.inner.target()
     }

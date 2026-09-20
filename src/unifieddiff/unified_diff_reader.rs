@@ -114,6 +114,7 @@ impl<R: Read> UnifiedDiffReader<R> {
         }
     }
 
+    #[must_use]
     pub fn parse_file_names(line: &str) -> (String, String) {
         let split: Vec<&str> = line.split(' ').collect();
         let from = Regex::new(r"^a/")
@@ -127,6 +128,7 @@ impl<R: Read> UnifiedDiffReader<R> {
         (from, to)
     }
 
+    #[must_use]
     pub fn extract_file_name(line: &str) -> String {
         let mut clean_line = line.to_string();
         if let Some(m) = TIMESTAMP_REGEXP.find(line) {
@@ -146,6 +148,7 @@ impl<R: Read> UnifiedDiffReader<R> {
             .to_string()
     }
 
+    #[must_use]
     pub fn extract_timestamp(line: &str) -> Option<String> {
         TIMESTAMP_REGEXP.find(line).map(|m| m.as_str().to_string())
     }
@@ -170,10 +173,9 @@ impl<R: Read> UnifiedDiffReader<R> {
             while let Some(ref line) = line_opt {
                 if self.valid_file_header_line(line) {
                     break;
-                } else {
-                    header_txt.push_str(line);
-                    header_txt.push('\n');
                 }
+                header_txt.push_str(line);
+                header_txt.push('\n');
                 line_opt = self
                     .reader
                     .read_line()

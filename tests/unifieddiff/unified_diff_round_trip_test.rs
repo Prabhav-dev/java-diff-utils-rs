@@ -1,3 +1,5 @@
+#![cfg(not(miri))]
+
 use std::fs::File;
 use std::io::{BufRead, BufReader, Cursor};
 use std::path::PathBuf;

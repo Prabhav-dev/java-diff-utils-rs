@@ -70,6 +70,7 @@ fn test_diff_myers_example_1_forward_with_listener() {
 
 // NOTE: This performance test is intentionally skipped by default because it takes a long time to run.
 // Remove the `#[ignore]` attribute below when you want to run this slow benchmark intentionally.
+#[cfg_attr(miri, ignore = "Miri is too slow for this long performance benchmark")]
 #[test]
 #[ignore]
 fn test_performance_problems_issue_124() {

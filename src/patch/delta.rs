@@ -19,6 +19,7 @@ pub struct Delta<T> {
 
 impl<T> Delta<T> {
     /// Creates a new `Delta` with the specified type, source, and target chunks.
+    #[must_use]
     pub fn new(delta_type: DeltaType, source: Chunk<T>, target: Chunk<T>) -> Self {
         Self {
             delta_type,
@@ -29,6 +30,7 @@ impl<T> Delta<T> {
 
     /// Returns a reference to the source chunk.
     #[inline]
+    #[must_use]
     pub fn source(&self) -> &Chunk<T> {
         &self.source
     }
@@ -41,6 +43,7 @@ impl<T> Delta<T> {
 
     /// Returns a reference to the target chunk.
     #[inline]
+    #[must_use]
     pub fn target(&self) -> &Chunk<T> {
         &self.target
     }
@@ -53,6 +56,7 @@ impl<T> Delta<T> {
 
     /// Returns the type of this delta.
     #[inline]
+    #[must_use]
     pub fn delta_type(&self) -> DeltaType {
         self.delta_type
     }
@@ -252,10 +256,10 @@ impl<T> From<Box<Delta<T>>> for Delta<T> {
 fn format_lines<T: fmt::Display>(lines: &[T]) -> String {
     let formatted_items = lines
         .iter()
-        .map(|item| item.to_string())
+        .map(std::string::ToString::to_string)
         .collect::<Vec<_>>()
         .join(", ");
-    format!("[{}]", formatted_items)
+    format!("[{formatted_items}]")
 }
 
 impl<T: fmt::Display> fmt::Display for Delta<T> {

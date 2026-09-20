@@ -13,10 +13,12 @@ pub struct UnifiedDiff {
 
 impl UnifiedDiff {
     /// Creates a new, empty `UnifiedDiff`.
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    #[must_use]
     pub fn header(&self) -> Option<&str> {
         self.header.as_deref()
     }
@@ -29,6 +31,7 @@ impl UnifiedDiff {
         self.files.push(file);
     }
 
+    #[must_use]
     pub fn files(&self) -> &[UnifiedDiffFile] {
         &self.files
     }
@@ -41,6 +44,7 @@ impl UnifiedDiff {
         self.tail = Some(tail_txt.into());
     }
 
+    #[must_use]
     pub fn tail(&self) -> Option<&str> {
         self.tail.as_deref()
     }
@@ -59,7 +63,7 @@ impl UnifiedDiff {
         let target_file = self
             .files
             .iter_mut()
-            .find(|diff| diff.from_file().map(&find_file).unwrap_or(false));
+            .find(|diff| diff.from_file().is_some_and(&find_file));
 
         if let Some(file) = target_file {
             Ok(file.patch_mut().apply_to(original_lines)?)

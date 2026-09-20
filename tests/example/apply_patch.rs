@@ -7,6 +7,7 @@ use java_diff_utils_rs::UnifiedDiffUtils;
 const ORIGINAL_PATH: &str = "tests/fixtures/issue10_base.txt";
 const PATCH_PATH: &str = "tests/fixtures/issue10_patch.txt";
 
+#[cfg(not(miri))]
 #[test]
 fn test_apply_patch_example() -> Result<(), Box<dyn Error>> {
     let original: Vec<String> = fs::read_to_string(ORIGINAL_PATH)?
