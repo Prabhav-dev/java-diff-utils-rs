@@ -1,6 +1,3 @@
-#![allow(clippy::type_complexity)]
-#![allow(clippy::while_let_loop)]
-
 use super::path_node::PathNode;
 use crate::algorithm::change::Change;
 use crate::algorithm::diff_algorithm_listener::DiffAlgorithmListener;
@@ -26,7 +23,7 @@ impl DiffWorkspace {
 }
 
 pub struct MyersDiff<T> {
-    equalizer: Option<Box<dyn Fn(&T, &T) -> bool>>,
+    equalizer: Option<crate::algorithm::diff_algorithm::EqualizerFn<T>>,
 }
 
 impl<T> Default for MyersDiff<T> {
@@ -268,11 +265,7 @@ fn build_revision(arena: &[PathNode], head_idx: usize) -> Vec<Change> {
         }
     }
 
-    loop {
-        let idx = match curr_idx {
-            Some(i) => i,
-            None => break,
-        };
+    while let Some(idx) = curr_idx {
         let node = &arena[idx];
 
         let prev_idx = match node.prev {

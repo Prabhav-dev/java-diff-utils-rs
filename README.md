@@ -6,35 +6,35 @@ This crate provides Java-compatible diff semantics in a safe, idiomatic Rust imp
 
 ## Release status
 
-This is the 0.1.0-beta.1 release.
+This is the `0.1.0-beta.2` release.
 
-The project is intended for broader validation and public use. Performance varies by workload, and the implementation is faster in many cases while remaining practical across a wide range of edit patterns.
+The project is suitable for production validation and public use. All core algorithms, patch generation, and unified diff utilities match upstream behavior with zero unsafe code.
 
 ## Features
 
 - `MyersDiff`: classic quadratic-space Myers algorithm
 - `MyersDiffWithLinearSpace`: linear-space Myers variant for larger inputs
 - `HistogramDiff`: anchor-based diff path with fallback behavior for tricky sequences
-- patch generation and application helpers
-- unified diff parsing and writing support
-- inline and side-by-side diff row generation
+- Patch generation and application helpers
+- Unified diff parsing and writing support
+- Inline and side-by-side diff row generation
 
-The project is split into a few small, focused modules:
+The project is split into clean, focused modules:
 
-- `src/algorithm/`: diff algorithm implementations and factories
-- `src/patch/`: deltas, chunk verification, and patch application
+- `src/algorithm/`: diff algorithm implementations, factories, and listeners
+- `src/patch/`: deltas, chunk verification, error types, and patch application
 - `src/text/`: diff row generation and string utilities
 - `src/unifieddiff/`: unified diff readers and writers
 - `src/diff_utils.rs`: public convenience helpers and default selection points
 
-## Safety and design
+## Safety and Code Quality
 
-The crate intentionally enforces a no-unsafe policy:
+The crate strictly enforces zero unsafe code and zero Clippy suppressions:
 
 - `#![forbid(unsafe_code)]` at the crate root and binary entry points
-- no raw pointer arithmetic or unsafe memory aliasing
-- explicit ownership and borrowing patterns
-- bounded, predictable allocation behavior
+- Zero raw pointer arithmetic or unsafe memory aliasing
+- **Zero Clippy warnings** enforced via `cargo clippy --all-targets -- -D warnings` without relying on `#![allow(clippy::...)]` pragmas
+- Explicit ownership, borrowing, and clean type abstractions
 
 ## Quick start
 
@@ -56,7 +56,7 @@ assert!(!histogram_changes.is_empty());
 
 ## Benchmarking
 
-Use Criterion to compare the available algorithms when you want to run the longer benchmark intentionally:
+Use Criterion to benchmark and compare the available algorithms:
 
 ```bash
 cargo bench --bench myers_diff
@@ -64,30 +64,47 @@ cargo bench --bench myers_diff
 
 The benchmark exercises:
 
-- public API diffing
+- Public API diffing
 - Myers quadratic vs. linear-space behavior
-- histogram diff behavior on similar and pathological inputs
+- Histogram diff behavior on similar and pathological inputs
 
-## Testing
+## Testing & Fuzzing
 
 The detailed test matrix and validation commands live in [TESTS.md](TESTS.md).
 
-The standard project verification command is:
+Run the standard test suite:
 
 ```bash
 cargo test --quiet
 ```
 
-### Miri validation
+### Fuzzing
 
-The project includes Miri-specific exclusions for file-system fixture tests and the large low-entropy / long-running stress cases that are intentionally skipped under Miri because they are not useful in the instrumented runtime and would otherwise fail or stall for reasons unrelated to the diff logic itself.
+Fuzzing targets live in `fuzz/`. Local verification includes 1,000,000+ fuzz iterations on arbitrary inputs via:
+
+```bash
+cargo fuzz run --manifest-path fuzz/Cargo.toml fuzz_target_1
+```
+
+### Docker
+
+Build and run the release container:
+
+```bash
+docker build -t java-diff-utils-rs .
+docker run --rm java-diff-utils-rs
+```
+
+The Docker build executes the test suite before building the release demonstration binary.
+
+### Miri Validation
+
+Cross-target Miri validation checks for undefined behavior:
 
 ```bash
 cargo +nightly miri test --target i686-unknown-linux-gnu
 cargo +nightly miri test --target s390x-unknown-linux-gnu
 ```
-
-These cross-target Miri checks are included as part of the validation story alongside the host 64-bit `cargo test` pass.
 
 ## License
 

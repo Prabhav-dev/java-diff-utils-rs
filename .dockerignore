@@ -1,0 +1,8 @@
+target/
+.git/
+.github/
+.vscode/
+Logs/
+Tester/
+fuzz/
+*.md

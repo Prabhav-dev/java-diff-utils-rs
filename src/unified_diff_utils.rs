@@ -1,8 +1,5 @@
 //! Utilities for generating and parsing single-file Unified Diffs.
 
-#![allow(clippy::if_same_then_else)]
-#![allow(clippy::needless_range_loop)]
-
 use regex::Regex;
 use std::collections::HashMap;
 
@@ -187,11 +184,14 @@ impl UnifiedDiffUtils {
         let cur_delta = deltas[0];
 
         let context_start = cur_delta.source().position().saturating_sub(context_size);
+        let context_end = cur_delta.source().position().min(orig_lines.len());
 
-        for line in context_start..cur_delta.source().position().min(orig_lines.len()) {
-            buffer.push(format!(" {}", orig_lines[line]));
-            orig_total += 1;
-            rev_total += 1;
+        if context_start < context_end {
+            for line in &orig_lines[context_start..context_end] {
+                buffer.push(format!(" {line}"));
+                orig_total += 1;
+                rev_total += 1;
+            }
         }
 
         buffer.extend(Self::get_delta_text(cur_delta));
@@ -202,11 +202,14 @@ impl UnifiedDiffUtils {
         for &next_delta in deltas.iter().skip(1) {
             let intermediate_start =
                 last_delta.source().position() + last_delta.source().lines().len();
+            let intermediate_end = next_delta.source().position().min(orig_lines.len());
 
-            for line in intermediate_start..next_delta.source().position().min(orig_lines.len()) {
-                buffer.push(format!(" {}", orig_lines[line]));
-                orig_total += 1;
-                rev_total += 1;
+            if intermediate_start < intermediate_end {
+                for line in &orig_lines[intermediate_start..intermediate_end] {
+                    buffer.push(format!(" {line}"));
+                    orig_total += 1;
+                    rev_total += 1;
+                }
             }
 
             buffer.extend(Self::get_delta_text(next_delta));
@@ -218,10 +221,12 @@ impl UnifiedDiffUtils {
         let post_context_start = last_delta.source().position() + last_delta.source().lines().len();
         let post_context_end = (post_context_start + context_size).min(orig_lines.len());
 
-        for line in post_context_start..post_context_end {
-            buffer.push(format!(" {}", orig_lines[line]));
-            orig_total += 1;
-            rev_total += 1;
+        if post_context_start < post_context_end {
+            for line in &orig_lines[post_context_start..post_context_end] {
+                buffer.push(format!(" {line}"));
+                orig_total += 1;
+                rev_total += 1;
+            }
         }
 
         let orig_start = if orig_total == 0 {
@@ -346,10 +351,9 @@ impl UnifiedDiffUtils {
                 start = 0;
             }
 
-            if simb.contains("@@ -1,") && nex_simb.is_none() && map["orgDel"] != original.len() {
-                result.extend(Self::get_orig_list(original, start, original.len() - 1));
-            } else if nex_simb.is_none()
-                && (map["orgRow"] + map["orgDel"]).wrapping_sub(1) < original.len()
+            if (simb.contains("@@ -1,") || (map["orgRow"] + map["orgDel"]).wrapping_sub(1) < original.len())
+                && nex_simb.is_none()
+                && map["orgDel"] != original.len()
             {
                 result.extend(Self::get_orig_list(original, start, original.len() - 1));
             }

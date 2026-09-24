@@ -1,11 +1,12 @@
-#![allow(clippy::module_inception)]
-
-pub mod myers;
 pub mod myers_linear;
+pub mod myers_quadratic;
 pub mod path_node;
 
+// Module alias for backward compatibility with `myers::myers` path
+pub use myers_quadratic as myers;
+
 // Re-export standard Myers
-pub use myers::*;
+pub use myers_quadratic::*;
 
 // Re-export linear Myers items
 pub use myers_linear::MyersDiffWithLinearSpace;

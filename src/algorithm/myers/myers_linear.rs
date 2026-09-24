@@ -1,8 +1,5 @@
 //! Eugene Myers linear space diff algorithm with O(N) space complexity.
 
-#![allow(clippy::too_many_arguments)]
-#![allow(clippy::type_complexity)]
-
 use crate::algorithm::{
     change::{Change, DeltaType},
     diff_algorithm_listener::DiffAlgorithmListener,
@@ -18,7 +15,7 @@ struct Snake {
 }
 
 pub struct MyersDiffWithLinearSpace<T> {
-    equalizer: Option<Box<dyn Fn(&T, &T) -> bool>>,
+    equalizer: Option<crate::algorithm::diff_algorithm::EqualizerFn<T>>,
 }
 
 impl<T> Default for MyersDiffWithLinearSpace<T> {
@@ -50,17 +47,15 @@ impl<T: PartialEq> DiffAlgorithm<T> for MyersDiffWithLinearSpace<T> {
         target: &[T],
         listener: &mut dyn DiffAlgorithmListener,
     ) -> Vec<Change> {
-        let mut ws = LinearWorkspace::new();
         if let Some(ref eq) = self.equalizer {
-            compute_diff_full(source, target, eq, &mut ws, Some(listener))
+            compute_diff_with_listener(source, target, eq, listener)
         } else {
-            compute_diff_full(source, target, |a, b| a == b, &mut ws, Some(listener))
+            compute_diff_with_listener(source, target, |a, b| a == b, listener)
         }
     }
 }
 
-/// Pre-allocated workspace to avoid dynamic vector re-allocations during recursive divide-and-conquer steps.
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct LinearWorkspace {
     v_down: Vec<usize>,
     v_up: Vec<usize>,
@@ -77,15 +72,11 @@ impl LinearWorkspace {
             self.v_down.resize(required_len, 0);
             self.v_up.resize(required_len, 0);
         } else {
-            self.v_down[..required_len].fill(0);
-            self.v_up[..required_len].fill(0);
+            self.v_down.fill(0);
+            self.v_up.fill(0);
         }
     }
 }
-
-/// No-op listener used as a default when no progress updates are requested.
-pub struct NoOpListener;
-impl DiffAlgorithmListener for NoOpListener {}
 
 pub fn compute_diff<T: PartialEq>(source: &[T], target: &[T]) -> Vec<Change> {
     compute_diff_with(source, target, |a, b| a == b)
@@ -95,14 +86,28 @@ pub fn compute_diff_with<T, F>(source: &[T], target: &[T], equalizer: F) -> Vec<
 where
     F: Fn(&T, &T) -> bool,
 {
-    let mut workspace = LinearWorkspace::new();
-    compute_diff_full(
-        source,
-        target,
-        equalizer,
-        &mut workspace,
-        Option::<&mut NoOpListener>::None,
-    )
+    let mut ws = LinearWorkspace::new();
+    let _noop = ();
+    compute_diff_full(source, target, equalizer, &mut ws, None::<&mut noop_listener::NoopListener>)
+}
+
+pub fn compute_diff_with_listener<T, F>(
+    source: &[T],
+    target: &[T],
+    equalizer: F,
+    listener: &mut dyn DiffAlgorithmListener,
+) -> Vec<Change>
+where
+    F: Fn(&T, &T) -> bool,
+{
+    let mut ws = LinearWorkspace::new();
+    compute_diff_full(source, target, equalizer, &mut ws, Some(listener))
+}
+
+mod noop_listener {
+    use crate::algorithm::diff_algorithm_listener::DiffAlgorithmListener;
+    pub struct NoopListener;
+    impl DiffAlgorithmListener for NoopListener {}
 }
 
 pub fn compute_diff_full<T, F, L>(
@@ -130,21 +135,22 @@ where
     let mut script = Vec::new();
     let max_steps = source.len() + target.len();
 
-    partition_and_build(
+    let mut ctx = LinearCtx {
         source,
         target,
-        &equalizer,
-        SubRegion {
-            src_start: 0,
-            src_end: source.len(),
-            tgt_start: 0,
-            tgt_end: target.len(),
-        },
-        workspace,
-        &mut script,
-        listener.as_deref_mut(),
+        equalizer: &equalizer,
+        ws: workspace,
+        script: &mut script,
+        listener: listener.as_deref_mut(),
         max_steps,
-    );
+    };
+
+    ctx.partition_and_build(SubRegion {
+        src_start: 0,
+        src_end: source.len(),
+        tgt_start: 0,
+        tgt_end: target.len(),
+    });
 
     if let Some(l) = listener {
         l.diff_end();
@@ -162,125 +168,162 @@ struct SubRegion {
     tgt_end: usize,
 }
 
-fn push_change(
-    script: &mut Vec<Change>,
-    delta_type: DeltaType,
+#[derive(Clone, Copy)]
+struct DeltaSpan {
     src_start: usize,
     src_end: usize,
     tgt_start: usize,
     tgt_end: usize,
-) {
-    // Coalesce contiguous operations of the same delta type
-    if let Some(last) = script.last_mut() {
-        if last.delta_type == delta_type {
-            match delta_type {
-                DeltaType::Delete if last.end_original == src_start => {
-                    last.end_original = src_end;
-                    return;
-                }
-                DeltaType::Insert if last.end_revised == tgt_start => {
-                    last.end_revised = tgt_end;
-                    return;
-                }
-                _ => {}
-            }
-        }
-    }
-
-    script.push(Change {
-        delta_type,
-        start_original: src_start,
-        end_original: src_end,
-        start_revised: tgt_start,
-        end_revised: tgt_end,
-    });
 }
 
-fn partition_and_build<T, F, L>(
-    source: &[T],
-    target: &[T],
-    equalizer: &F,
-    region: SubRegion,
-    ws: &mut LinearWorkspace,
-    script: &mut Vec<Change>,
-    mut listener: Option<&mut L>,
+struct LinearCtx<'a, T, F, L: ?Sized> {
+    source: &'a [T],
+    target: &'a [T],
+    equalizer: &'a F,
+    ws: &'a mut LinearWorkspace,
+    script: &'a mut Vec<Change>,
+    listener: Option<&'a mut L>,
     max_steps: usize,
-) where
+}
+
+impl<'a, T, F, L> LinearCtx<'a, T, F, L>
+where
     F: Fn(&T, &T) -> bool,
     L: DiffAlgorithmListener + ?Sized,
 {
-    if let Some(l) = listener.as_deref_mut() {
-        let step =
-            (region.src_end - region.src_start) / 2 + (region.tgt_end - region.tgt_start) / 2;
-        l.diff_step(step, max_steps);
-    }
-
-    let middle_snake = find_middle_snake(source, target, equalizer, region, ws);
-
-    let reached_terminal = match middle_snake {
-        None => true,
-        Some(s) => {
-            let diag_offset = region.src_end as isize - region.tgt_end as isize;
-            let start_offset = region.src_start as isize - region.tgt_start as isize;
-
-            (s.start == region.src_end && s.diag == diag_offset)
-                || (s.end == region.src_start && s.diag == start_offset)
-        }
-    };
-
-    if reached_terminal {
-        let mut i = region.src_start;
-        let mut j = region.tgt_start;
-
-        while i < region.src_end || j < region.tgt_end {
-            if i < region.src_end && j < region.tgt_end && equalizer(&source[i], &target[j]) {
-                i += 1;
-                j += 1;
-            } else if (region.src_end - i) > (region.tgt_end - j) {
-                push_change(script, DeltaType::Delete, i, i + 1, j, j);
-                i += 1;
-            } else {
-                push_change(script, DeltaType::Insert, i, i, j, j + 1);
-                j += 1;
+    fn push_change(&mut self, delta_type: DeltaType, span: DeltaSpan) {
+        if let Some(last) = self.script.last_mut() {
+            if last.delta_type == delta_type {
+                match delta_type {
+                    DeltaType::Delete if last.end_original == span.src_start => {
+                        last.end_original = span.src_end;
+                        return;
+                    }
+                    DeltaType::Insert if last.end_revised == span.tgt_start => {
+                        last.end_revised = span.tgt_end;
+                        return;
+                    }
+                    _ => {}
+                }
             }
         }
-    } else if let Some(snake) = middle_snake {
-        let mid_tgt_1 = (snake.start as isize - snake.diag) as usize;
-        let mid_tgt_2 = (snake.end as isize - snake.diag) as usize;
 
-        // Left split branch
-        partition_and_build(
-            source,
-            target,
-            equalizer,
-            SubRegion {
-                src_start: region.src_start,
-                src_end: snake.start,
-                tgt_start: region.tgt_start,
-                tgt_end: mid_tgt_1,
-            },
-            ws,
-            script,
-            listener.as_deref_mut(),
-            max_steps,
-        );
+        self.script.push(Change {
+            delta_type,
+            start_original: span.src_start,
+            end_original: span.src_end,
+            start_revised: span.tgt_start,
+            end_revised: span.tgt_end,
+        });
+    }
 
-        // Right split branch
-        partition_and_build(
-            source,
-            target,
-            equalizer,
-            SubRegion {
-                src_start: snake.end,
-                src_end: region.src_end,
-                tgt_start: mid_tgt_2,
-                tgt_end: region.tgt_end,
-            },
-            ws,
-            script,
-            listener,
-            max_steps,
-        );
+    fn partition_and_build(&mut self, mut region: SubRegion) {
+        let mut src_start = region.src_start;
+        let mut src_end = region.src_end;
+        let mut tgt_start = region.tgt_start;
+        let mut tgt_end = region.tgt_end;
+
+        while src_start < src_end
+            && tgt_start < tgt_end
+            && (self.equalizer)(&self.source[src_start], &self.target[tgt_start])
+        {
+            src_start += 1;
+            tgt_start += 1;
+        }
+
+        while src_start < src_end
+            && tgt_start < tgt_end
+            && (self.equalizer)(&self.source[src_end - 1], &self.target[tgt_end - 1])
+        {
+            src_end -= 1;
+            tgt_end -= 1;
+        }
+
+        region = SubRegion {
+            src_start,
+            src_end,
+            tgt_start,
+            tgt_end,
+        };
+
+        if src_start == src_end {
+            if tgt_start < tgt_end {
+                self.push_change(
+                    DeltaType::Insert,
+                    DeltaSpan {
+                        src_start,
+                        src_end,
+                        tgt_start,
+                        tgt_end,
+                    },
+                );
+            }
+            return;
+        }
+
+        if tgt_start == tgt_end {
+            if src_start < src_end {
+                self.push_change(
+                    DeltaType::Delete,
+                    DeltaSpan {
+                        src_start,
+                        src_end,
+                        tgt_start,
+                        tgt_end,
+                    },
+                );
+            }
+            return;
+        }
+
+        let snake = find_middle_snake(self.source, self.target, self.equalizer, region, self.ws);
+
+        if let Some(ref mut l) = self.listener {
+            let processed = (src_start + tgt_start) / 2;
+            l.diff_step(processed, self.max_steps);
+        }
+
+        if let Some(sn) = snake {
+            let sn_tgt_start = (sn.start as isize - sn.diag) as usize;
+            let sn_tgt_end = (sn.end as isize - sn.diag) as usize;
+
+            if sn.start > src_start || sn_tgt_start > tgt_start {
+                self.partition_and_build(SubRegion {
+                    src_start,
+                    src_end: sn.start,
+                    tgt_start,
+                    tgt_end: sn_tgt_start,
+                });
+            }
+
+            if src_end > sn.end || tgt_end > sn_tgt_end {
+                self.partition_and_build(SubRegion {
+                    src_start: sn.end,
+                    src_end,
+                    tgt_start: sn_tgt_end,
+                    tgt_end,
+                });
+            }
+        } else {
+            self.push_change(
+                DeltaType::Delete,
+                DeltaSpan {
+                    src_start,
+                    src_end,
+                    tgt_start,
+                    tgt_end: tgt_start,
+                },
+            );
+            self.push_change(
+                DeltaType::Insert,
+                DeltaSpan {
+                    src_start: src_end,
+                    src_end,
+                    tgt_start,
+                    tgt_end,
+                },
+            );
+        }
     }
 }
 

@@ -3,6 +3,9 @@ use super::{
     diff_algorithm_listener::{DiffAlgorithmListener, NoOpListener},
 };
 
+/// Type alias for an element equality predicate closure.
+pub type EqualizerFn<T> = Box<dyn Fn(&T, &T) -> bool>;
+
 pub trait DiffAlgorithm<T> {
     fn diff(&self, source: &[T], target: &[T]) -> Vec<Change> {
         let mut noop = NoOpListener;

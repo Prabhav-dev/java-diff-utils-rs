@@ -1,7 +1,5 @@
 //! Writer utility for exporting a `UnifiedDiff` back into standard unified diff format strings or streams.
 
-#![allow(clippy::needless_range_loop)]
-
 use std::io::{self, Write};
 
 use super::unified_diff::UnifiedDiff;
@@ -127,11 +125,14 @@ impl UnifiedDiffWriter {
         let cur_delta = deltas[0];
 
         let context_start = cur_delta.source().position().saturating_sub(context_size);
+        let context_end = cur_delta.source().position().min(orig_lines.len());
 
-        for line in context_start..cur_delta.source().position().min(orig_lines.len()) {
-            buffer.push(format!(" {}", orig_lines[line]));
-            orig_total += 1;
-            rev_total += 1;
+        if context_start < context_end {
+            for line in &orig_lines[context_start..context_end] {
+                buffer.push(format!(" {line}"));
+                orig_total += 1;
+                rev_total += 1;
+            }
         }
 
         Self::get_delta_text(&mut |txt| buffer.push(txt.to_string()), cur_delta);
@@ -142,11 +143,14 @@ impl UnifiedDiffWriter {
         for &next_delta in deltas.iter().skip(1) {
             let intermediate_start =
                 last_delta.source().position() + last_delta.source().lines().len();
+            let intermediate_end = next_delta.source().position().min(orig_lines.len());
 
-            for line in intermediate_start..next_delta.source().position().min(orig_lines.len()) {
-                buffer.push(format!(" {}", orig_lines[line]));
-                orig_total += 1;
-                rev_total += 1;
+            if intermediate_start < intermediate_end {
+                for line in &orig_lines[intermediate_start..intermediate_end] {
+                    buffer.push(format!(" {line}"));
+                    orig_total += 1;
+                    rev_total += 1;
+                }
             }
 
             Self::get_delta_text(&mut |txt| buffer.push(txt.to_string()), next_delta);
@@ -158,10 +162,12 @@ impl UnifiedDiffWriter {
         let post_context_start = last_delta.source().position() + last_delta.source().lines().len();
         let post_context_end = (post_context_start + context_size).min(orig_lines.len());
 
-        for line in post_context_start..post_context_end {
-            buffer.push(format!(" {}", orig_lines[line]));
-            orig_total += 1;
-            rev_total += 1;
+        if post_context_start < post_context_end {
+            for line in &orig_lines[post_context_start..post_context_end] {
+                buffer.push(format!(" {line}"));
+                orig_total += 1;
+                rev_total += 1;
+            }
         }
 
         let orig_start = if orig_total == 0 {
