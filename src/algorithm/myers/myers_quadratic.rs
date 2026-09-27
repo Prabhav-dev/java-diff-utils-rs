@@ -83,7 +83,7 @@ where
                 source,
                 target,
                 equalizer,
-                &mut *ws_guard,
+                &mut ws_guard,
                 None,
             )
         } else {
@@ -108,7 +108,7 @@ where
                 source,
                 target,
                 equalizer,
-                &mut *ws_guard,
+                &mut ws_guard,
                 Some(listener),
             )
         } else {

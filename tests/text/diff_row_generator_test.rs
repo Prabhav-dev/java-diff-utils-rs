@@ -83,7 +83,7 @@ fn test_generator_inline_diff() {
     print_rows(&rows);
 
     assert_eq!(rows.len(), 3);
-    assert!(rows[0].old_line().find("<span").is_some());
+    assert!(rows[0].old_line().contains("<span"));
 }
 
 #[test]
