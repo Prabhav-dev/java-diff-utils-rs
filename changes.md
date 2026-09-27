@@ -1,5 +1,23 @@
 # Changes
 
+## 0.1.0-beta.3
+
+### Changed
+
+- Accelerated `MyersDiff` (quadratic space) by 2.5x to 19x across all workload shapes while strictly maintaining `#![forbid(unsafe_code)]`.
+- Eliminated massive upfront heap allocations in `MyersDiff` by dynamically growing diagonal buffers starting from ~1 KB rather than allocating up to 112 MB on each invocation.
+- Integrated thread-local workspace reuse with re-entrancy fallback via `RefCell`, providing zero-allocation diffing for repeated invocations on the same thread.
+- Flattened Myers inner loop branching and redundant bounds checks for faster path exploration.
+- Fixed the dormant `DiffAlgorithmListener` bug where progress listeners passed to `DiffUtils::diff_with_algorithm`, `DiffUtils::diff`, and `DiffUtils::diff_text` were previously ignored instead of invoking `diff_with_listener`.
+- Updated `DiffUtils::diff` and `DiffUtils::diff_text` signatures to accept `Option<&mut dyn DiffAlgorithmListener>`, enabling real progress callbacks during execution.
+- Added comprehensive unit tests in `diff_utils_test` and `myers_linear_space_diff_test` verifying authentic listener lifecycle and progress tracking.
+
+### Validation
+
+- Full test suite passes: 170 unit tests passing (100% pass rate).
+- All 11 standalone release-mode benchmark cases pass with major speedups across all edit shapes (up to 19.4x faster on clustered edits, 16.5x faster on identical sequences, 5.8x faster on appends).
+- Zero warnings across `cargo check --all-targets` and strictly zero unsafe code.
+
 ## 0.1.0-beta.2
 
 ### Changed

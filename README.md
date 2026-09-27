@@ -6,7 +6,7 @@ This crate provides Java-compatible diff semantics in a safe, idiomatic Rust imp
 
 ## Release status
 
-This is the `0.1.0-beta.2` release.
+This is the `0.1.0-beta.3` release.
 
 The project is suitable for production validation and public use. All core algorithms, patch generation, and unified diff utilities match upstream behavior with zero unsafe code.
 

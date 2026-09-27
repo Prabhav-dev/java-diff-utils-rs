@@ -40,7 +40,7 @@ impl DiffUtils {
     pub fn diff<T>(
         original: &[T],
         revised: &[T],
-        progress: Option<&dyn DiffAlgorithmListener>,
+        progress: Option<&mut dyn DiffAlgorithmListener>,
     ) -> Patch<T>
     where
         T: Eq + Hash + Clone + 'static,
@@ -64,7 +64,7 @@ impl DiffUtils {
     pub fn diff_text(
         source_text: &str,
         target_text: &str,
-        progress: Option<&dyn DiffAlgorithmListener>,
+        progress: Option<&mut dyn DiffAlgorithmListener>,
     ) -> Patch<String> {
         let original: Vec<String> = source_text.lines().map(str::to_string).collect();
         let revised: Vec<String> = target_text.lines().map(str::to_string).collect();
@@ -102,13 +102,17 @@ impl DiffUtils {
         original: &[T],
         revised: &[T],
         algorithm: &dyn DiffAlgorithm<T>,
-        _progress: Option<&dyn DiffAlgorithmListener>,
+        mut progress: Option<&mut dyn DiffAlgorithmListener>,
         include_equal_parts: bool,
     ) -> Patch<T>
     where
         T: Clone + 'static,
     {
-        let deltas = algorithm.diff(original, revised);
+        let deltas = if let Some(ref mut listener) = progress {
+            algorithm.diff_with_listener(original, revised, &mut **listener)
+        } else {
+            algorithm.diff(original, revised)
+        };
         Patch::generate(original, revised, &deltas, include_equal_parts)
     }
 

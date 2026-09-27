@@ -1,13 +1,19 @@
+use std::cell::RefCell;
+
 use super::path_node::PathNode;
 use crate::algorithm::change::Change;
 use crate::algorithm::diff_algorithm_listener::DiffAlgorithmListener;
 use crate::algorithm::DiffAlgorithm;
 use crate::patch::delta_type::DeltaType;
 
+thread_local! {
+    static TL_WORKSPACE: RefCell<DiffWorkspace> = RefCell::new(DiffWorkspace::new());
+}
+
 #[derive(Default)]
 pub struct DiffWorkspace {
     arena: Vec<PathNode>,
-    diagonal: Vec<Option<usize>>,
+    diagonal: Vec<u32>,
 }
 
 impl DiffWorkspace {
@@ -18,7 +24,7 @@ impl DiffWorkspace {
 
     pub fn clear(&mut self) {
         self.arena.clear();
-        self.diagonal.fill(None);
+        self.diagonal.clear();
     }
 }
 
@@ -71,8 +77,20 @@ pub fn compute_diff_with<T, F>(source: &[T], target: &[T], equalizer: F) -> Vec<
 where
     F: Fn(&T, &T) -> bool,
 {
-    let mut ws = DiffWorkspace::new();
-    compute_diff_with_workspace_and_listener(source, target, equalizer, &mut ws, None)
+    TL_WORKSPACE.with(|cell| {
+        if let Ok(mut ws_guard) = cell.try_borrow_mut() {
+            compute_diff_with_workspace_and_listener(
+                source,
+                target,
+                equalizer,
+                &mut *ws_guard,
+                None,
+            )
+        } else {
+            let mut ws = DiffWorkspace::new();
+            compute_diff_with_workspace_and_listener(source, target, equalizer, &mut ws, None)
+        }
+    })
 }
 
 pub fn compute_diff_with_listener<T, F>(
@@ -84,8 +102,26 @@ pub fn compute_diff_with_listener<T, F>(
 where
     F: Fn(&T, &T) -> bool,
 {
-    let mut ws = DiffWorkspace::new();
-    compute_diff_with_workspace_and_listener(source, target, equalizer, &mut ws, Some(listener))
+    TL_WORKSPACE.with(|cell| {
+        if let Ok(mut ws_guard) = cell.try_borrow_mut() {
+            compute_diff_with_workspace_and_listener(
+                source,
+                target,
+                equalizer,
+                &mut *ws_guard,
+                Some(listener),
+            )
+        } else {
+            let mut ws = DiffWorkspace::new();
+            compute_diff_with_workspace_and_listener(
+                source,
+                target,
+                equalizer,
+                &mut ws,
+                Some(listener),
+            )
+        }
+    })
 }
 
 pub fn compute_diff_with_workspace<T, F>(
@@ -153,16 +189,18 @@ where
     let n = orig.len();
     let m = rev.len();
     let max = n + m + 1;
-    let size = 1 + 2 * max;
-    let middle = max;
 
     ws.arena.clear();
-    ws.arena.reserve(max * 2);
+    if ws.arena.capacity() < 256 {
+        ws.arena.reserve(256);
+    }
+
+    let mut limit = max.min(128);
+    let mut middle = limit + 1;
+    let size = 2 * limit + 3;
 
     if ws.diagonal.len() < size {
-        ws.diagonal.resize(size, None);
-    } else {
-        ws.diagonal.fill(None);
+        ws.diagonal.resize(size, 0);
     }
 
     ws.arena.push(PathNode {
@@ -172,7 +210,7 @@ where
         is_bootstrap: true,
         prev: None,
     });
-    ws.diagonal[middle + 1] = Some(0);
+    ws.diagonal[middle + 1] = 0;
 
     for d in 0..max {
         let d_isize = d as isize;
@@ -182,33 +220,48 @@ where
             l.path_node(d, max, d);
         }
 
+        // Dynamically grow diagonal if d + 1 exceeds current limit
+        if d + 1 > limit {
+            let new_limit = (limit * 2).min(max);
+            let new_middle = new_limit + 1;
+            let new_size = 2 * new_limit + 3;
+            if ws.diagonal.len() < new_size {
+                ws.diagonal.resize(new_size, 0);
+            }
+
+            if d > 0 {
+                let shift = new_middle - middle;
+                let old_start = middle - (d - 1);
+                let old_end = middle + (d - 1) + 1;
+                ws.diagonal.copy_within(old_start..old_end, old_start + shift);
+            }
+
+            limit = new_limit;
+            middle = new_middle;
+        }
+
+        // Ensure arena has sufficient capacity for this d iteration so push() inside k loop never reallocates
+        ws.arena.reserve(2 * (d + 1));
+
         for k in (-d_isize..=d_isize).step_by(2) {
             let kmiddle = (middle as isize + k) as usize;
             let kplus = kmiddle + 1;
             let kminus = kmiddle - 1;
 
             let (i_start, prev_idx) = if k == -d_isize {
-                let p = ws.diagonal[kplus].unwrap_or(0);
+                let p = ws.diagonal[kplus] as usize;
                 (ws.arena[p].i, p)
-            } else if k != d_isize {
-                let pm = ws.diagonal[kminus];
-                let pp = ws.diagonal[kplus];
-
-                match (pm, pp) {
-                    (Some(pm), Some(pp)) => {
-                        if ws.arena[pm].i < ws.arena[pp].i {
-                            (ws.arena[pp].i, pp)
-                        } else {
-                            (ws.arena[pm].i + 1, pm)
-                        }
-                    }
-                    (None, Some(pp)) => (ws.arena[pp].i, pp),
-                    (Some(pm), None) => (ws.arena[pm].i + 1, pm),
-                    (None, None) => (0, 0),
-                }
-            } else {
-                let p = ws.diagonal[kminus].unwrap_or(0);
+            } else if k == d_isize {
+                let p = ws.diagonal[kminus] as usize;
                 (ws.arena[p].i + 1, p)
+            } else {
+                let pm = ws.diagonal[kminus] as usize;
+                let pp = ws.diagonal[kplus] as usize;
+                if ws.arena[pm].i < ws.arena[pp].i {
+                    (ws.arena[pp].i, pp)
+                } else {
+                    (ws.arena[pm].i + 1, pm)
+                }
             };
 
             let mut i = i_start;
@@ -230,7 +283,7 @@ where
                 j += 1;
             }
 
-            let final_node_idx = if i == ws.arena[node_idx].i {
+            let final_node_idx = if i == i_start {
                 node_idx
             } else {
                 let snake_idx = ws.arena.len();
@@ -244,7 +297,7 @@ where
                 snake_idx
             };
 
-            ws.diagonal[kmiddle] = Some(final_node_idx);
+            ws.diagonal[kmiddle] = final_node_idx as u32;
 
             if i >= n && j >= 0 && (j as usize) >= m {
                 return Some(final_node_idx);

@@ -91,3 +91,35 @@ fn test_delta_type_names() {
     assert_eq!(delta1.source(), &Chunk::new(3, vec!["brown"], None));
     assert_eq!(delta1.target(), &Chunk::new(3, vec!["down"], None));
 }
+
+#[derive(Default)]
+struct TestListener {
+    started: bool,
+    ended: bool,
+    steps: Vec<(usize, usize)>,
+}
+
+impl java_diff_utils_rs::algorithm::diff_algorithm_listener::DiffAlgorithmListener for TestListener {
+    fn diff_start(&mut self) {
+        self.started = true;
+    }
+    fn diff_step(&mut self, value: usize, max: usize) {
+        self.steps.push((value, max));
+    }
+    fn diff_end(&mut self) {
+        self.ended = true;
+    }
+}
+
+#[test]
+fn test_diff_with_listener() {
+    let source = vec!["aaa", "bbb", "ccc"];
+    let target = vec!["aaa", "zzz", "ccc"];
+
+    let mut listener = TestListener::default();
+    let patch = DiffUtils::diff(&source, &target, Some(&mut listener));
+
+    assert!(listener.started, "listener.diff_start should have been called");
+    assert!(listener.ended, "listener.diff_end should have been called");
+    assert_eq!(patch.deltas().len(), 1);
+}

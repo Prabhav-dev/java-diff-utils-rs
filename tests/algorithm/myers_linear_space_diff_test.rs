@@ -50,11 +50,16 @@ fn test_diff_myers_example_1_forward_with_listener() {
 
     let mut listener = LinearLoggingListener::default();
 
-    let changes = compute_diff_linear(&original, &revised);
+    let changes = java_diff_utils_rs::algorithm::myers::myers_linear::compute_diff_with_listener(
+        &original,
+        &revised,
+        |a, b| a == b,
+        &mut listener,
+    );
 
-    listener.diff_start();
-    listener.diff_step(1, 10);
-    listener.diff_end();
+    assert!(listener.logdata.contains(&"start".to_string()));
+    assert!(listener.logdata.contains(&"end".to_string()));
+    assert!(listener.logdata.len() >= 3);
 
     let patch = Patch::generate(&original, &revised, &changes, false);
 
